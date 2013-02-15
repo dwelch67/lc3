@@ -202,7 +202,7 @@ void reset ( void )
 {
     pc=0x3000;
     psr=0;
-    reg[0]=0xF000;
+    reg[0]=0x1234;
     reg[1]=0x1234;
     reg[2]=0x1234;
     reg[3]=0x1234;
@@ -210,30 +210,39 @@ void reset ( void )
     reg[5]=0x1234;
     reg[6]=0x1234;
     reg[7]=0x1234;
-
-
-    mem[0x3000]=0x1021; //ADD R0,R0,#1
-    mem[0x3001]=0xF067; //trap 0x67
-    mem[0x3002]=0x0BFD; //BRNZP -3
-    mem[0x3003]=0xD000; //undefined
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
-int main ( void )
+//-----------------------------------------------------------------------------
+void load_word ( unsigned int add, unsigned char hi, unsigned char lo )
 {
+    unsigned short data;
+    //printf("0x%04X 0x%02X%02X\n",add,hi,lo);
+    data=hi; data<<=8; data|=lo;
+    mem[add&MEMMASK]=data;
+}
+//-----------------------------------------------------------------------------
+extern int readhex ( FILE *fp );
+int main ( int argc, char *argv[] )
+{
+    FILE *fp;
+
+    if(argc<2)
+    {
+        fprintf(stderr,".hex file not specified\n");
+        return(1);
+    }
+
+    memset(mem,0xDD,sizeof(mem));
     reset();
+
+    fp=fopen(argv[1],"rt");
+    if(fp==NULL)
+    {
+        fprintf(stderr,"Error opening file [%s]\n",argv[1]);
+        return(1);
+    }
+    if(readhex(fp)) return(1);
+    fclose(fp);
+
     sim();
     return(0);
 }

@@ -11,7 +11,7 @@
 FILE *fpin;
 FILE *fpout;
 
-unsigned int rd,rs,rt,rx;//,rshift,immed;
+unsigned int rd,rs,rt,rx;
 unsigned int is_const,is_label;
 
 #define ADDMASK 0xFFFF
@@ -124,7 +124,17 @@ unsigned int check_simmed5 ( unsigned int rx )
     rx>>=4;
     if(rx==0) return(0);
     if(rx==0x0FFF) return(0);
-    printf("<%u> Error: invalid signed immed5\n",line);
+    printf("<%u> Error: invalid signed_immed5\n",line);
+    return(1);
+}
+//-------------------------------------------------------------------
+unsigned int check_simmed6 ( unsigned int rx )
+{
+    rx&=0xFFFF;
+    rx>>=5;
+    if(rx==0) return(0);
+    if(rx==0x07FF) return(0);
+    printf("<%u> Error: invalid signed_immed6\n",line);
     return(1);
 }
 //-------------------------------------------------------------------
@@ -166,6 +176,7 @@ unsigned int parse_immed ( unsigned int ra )
         for(;newline[ra];ra++)
         {
             if(newline[ra]==0x20) break;
+            if(newline[ra]==']') break;
             if(!hexchar[newline[ra]])
             {
                 printf("<%u> Error: invalid number\n",line);
@@ -187,6 +198,7 @@ unsigned int parse_immed ( unsigned int ra )
         for(;newline[ra];ra++)
         {
             if(newline[ra]==0x20) break;
+            if(newline[ra]==']') break;
             if(!numchar[newline[ra]])
             {
                 printf("<%u> Error: invalid number\n",line);
@@ -241,10 +253,10 @@ unsigned int parse_comma ( unsigned int ra )
     return(ra);
 }
 //-------------------------------------------------------------------
-unsigned int parse_par_open ( unsigned int ra )
+unsigned int parse_bracket_open ( unsigned int ra )
 {
     for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
-    if(newline[ra]!='(')
+    if(newline[ra]!='[')
     {
         printf("<%u> Error: syntax error\n",line);
         return(0);
@@ -254,10 +266,23 @@ unsigned int parse_par_open ( unsigned int ra )
     return(ra);
 }
 //-------------------------------------------------------------------
-unsigned int parse_par_close ( unsigned int ra )
+unsigned int parse_bracket_close ( unsigned int ra )
 {
     for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
-    if(newline[ra]!=')')
+    if(newline[ra]!=']')
+    {
+        printf("<%u> Error: syntax error\n",line);
+        return(0);
+    }
+    ra++;
+    for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
+    return(ra);
+}
+//-------------------------------------------------------------------
+unsigned int parse_pound ( unsigned int ra )
+{
+    for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
+    if(newline[ra]!='#')
     {
         printf("<%u> Error: syntax error\n",line);
         return(0);
@@ -371,23 +396,6 @@ unsigned int parse_one_label ( unsigned int ra )
     ra=parse_comma(ra); if(ra==0) return(0);
     ra=parse_branch_label(ra); if(ra==0) return(0);
     rd=rx;
-    return(ra);
-}
-//-------------------------------------------------------------------
-unsigned int parse_load_store ( unsigned int ra )
-{
-    ra=parse_reg(ra); if(ra==0) return(0);
-    rt=rx;
-    ra=parse_comma(ra); if(ra==0) return(0);
-    ra=parse_branch_label(ra); if(ra==0) return(0);
-    rd=rx;
-    if(is_const)
-    {
-        ra=parse_par_open(ra); if(ra==0) return(0);
-        ra=parse_reg(ra); if(ra==0) return(0);
-        rs=rx;
-        ra=parse_par_close(ra); if(ra==0) return(0);
-    }
     return(ra);
 }
 //-------------------------------------------------------------------
@@ -864,29 +872,22 @@ int assemble ( void )
         if(strncmp(&newline[ra],"ldr ",4)==0)
         {
             ra+=4;
-            //ldi rd,offset/label
+            //ldr rd,[rs,#offset]
             ra=parse_reg(ra); if(ra==0) return(1);
             rd=rx;
             ra=parse_comma(ra); if(ra==0) return(1);
-            ra=parse_branch_label(ra); if(ra==0) return(0);
+            ra=parse_bracket_open(ra); if(ra==0) return(1);
+            ra=parse_reg(ra); if(ra==0) return(1);
+            rs=rx;
+            ra=parse_comma(ra); if(ra==0) return(1);
+            ra=parse_pound(ra); if(ra==0) return(1);
+            ra=parse_immed(ra); if(ra==0) return(1);
+            ra=parse_bracket_close(ra); if(ra==0) return(1);
             if(rest_of_line(ra)) return(1);
-            if(is_const)
-            {
-                if(check_offset9(rx))
-                {
-                    printf("<%u> Error: ldr too far\n",line);
-                    return(1);
-                }
-                mem[curradd]=0x6000|(rd<<9)|(rx&0x01FF);
-                mark[curradd]|=0x80000000;
-                curradd++;
-            }
-            else
-            {
-                mem[curradd]=0x6000|(rd<<9);
-                mark[curradd]|=0x80000002;
-                curradd++;
-            }
+            if(check_simmed6(rx)) return(1);
+            mem[curradd]=0x6000|(rd<<9)|(rs<<6)|(rx&0x003F);
+            mark[curradd]|=0x80000000;
+            curradd++;
             continue;
         }
 // lea -----------------------------------------------------------
@@ -980,29 +981,22 @@ int assemble ( void )
         if(strncmp(&newline[ra],"str ",4)==0)
         {
             ra+=4;
-            //str rd,offset/label
+            //str rd,[sr1,#offset]
             ra=parse_reg(ra); if(ra==0) return(1);
             rd=rx;
             ra=parse_comma(ra); if(ra==0) return(1);
-            ra=parse_branch_label(ra); if(ra==0) return(0);
+            ra=parse_bracket_open(ra); if(ra==0) return(1);
+            ra=parse_reg(ra); if(ra==0) return(1);
+            rs=rx;
+            ra=parse_comma(ra); if(ra==0) return(1);
+            ra=parse_pound(ra); if(ra==0) return(1);
+            ra=parse_immed(ra); if(ra==0) return(1);
+            ra=parse_bracket_close(ra); if(ra==0) return(1);
             if(rest_of_line(ra)) return(1);
-            if(is_const)
-            {
-                if(check_offset9(rx))
-                {
-                    printf("<%u> Error: str too far\n",line);
-                    return(1);
-                }
-                mem[curradd]=0x7000|(rd<<9)|(rx&0x01FF);
-                mark[curradd]|=0x80000000;
-                curradd++;
-            }
-            else
-            {
-                mem[curradd]=0x7000|(rd<<9);
-                mark[curradd]|=0x80000002;
-                curradd++;
-            }
+            if(check_simmed6(rx)) return(1);
+            mem[curradd]=0x7000|(rd<<9)|(rs<<6)|(rx&0x003F);
+            mark[curradd]|=0x80000000;
+            curradd++;
             continue;
         }
 // trap -----------------------------------------------------------
@@ -1119,19 +1113,6 @@ int main ( int argc, char *argv[] )
                         inst|=rd&0x07FF;
                         lab_struct[ra].type++;
                     }
-                    if((inst&0xF000)==0x6000)
-                    {
-                        //ldr
-                        rs=0x3000+(lab_struct[ra].addr);
-                        rd=rx-(rs+1);
-                        if(check_offset6(rd))
-                        {
-                            printf("<%u> Error: ldr too far\n",lab_struct[ra].line,inst);
-                            return(1);
-                        }
-                        inst|=rd&0x003F;
-                        lab_struct[ra].type++;
-                    }
                     if((inst&0xF000)==0xE000)
                     {
                         //lea
@@ -1171,19 +1152,6 @@ int main ( int argc, char *argv[] )
                         inst|=rd&0x01FF;
                         lab_struct[ra].type++;
                     }
-                    if((inst&0xF000)==0x7000)
-                    {
-                        //str
-                        rs=0x3000+(lab_struct[ra].addr);
-                        rd=rx-(rs+1);
-                        if(check_offset9(rd))
-                        {
-                            printf("<%u> Error: str too far\n",lab_struct[ra].line,inst);
-                            return(1);
-                        }
-                        inst|=rd&0x01FF;
-                        lab_struct[ra].type++;
-                    }
 
                     if(lab_struct[ra].type==1)
                     {
@@ -1201,7 +1169,6 @@ int main ( int argc, char *argv[] )
             }
         }
     }
-
     sprintf(newline,"%s.hex",argv[1]);
     fpout=fopen(newline,"wt");
     if(fpout==NULL)
@@ -1227,10 +1194,7 @@ int main ( int argc, char *argv[] )
             fprintf(fpout,":%02X%04X%02X%04X%02X\n",0x02,curradd&0xFFFF,0x00,mem[ra],rb);
         }
     }
-
     fclose(fpout);
-
-
     return(0);
 }
 //-------------------------------------------------------------------

@@ -1,4 +1,7 @@
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,159 +21,37 @@ void load_word ( unsigned int add, unsigned char hi, unsigned char lo )
     mem_hit[add&RAMMASK]++;
 }
 //-----------------------------------------------------------------------------
-int readhex ( FILE *fp )
-{
-
-    char gstring[80];
-    char newline[1024];
-    unsigned char hexline[1024];
-
-//#define RAMMASK 0xFFFF
-
-
-    //unsigned int errors;
-
-    //unsigned int addhigh;
-    unsigned int add;
-    unsigned int data;
-
-    unsigned int ra;
-    //unsigned int rb;
-
-    //unsigned int pages;
-    //unsigned int page;
-
-    unsigned int line;
-
-    unsigned char checksum;
-
-    unsigned int len;
-    unsigned int hexlen;
-    unsigned int maxadd;
-
-    unsigned char t;
-
-    maxadd=0;
-
-    //addhigh=0;
-
-    line=0;
-    while(fgets(newline,sizeof(newline)-1,fp))
-    {
-        line++;
-        //printf("%s",newline);
-        if(newline[0]!=':')
-        {
-            printf("Syntax error <%u> no colon\n",line);
-            continue;
-        }
-        gstring[0]=newline[1];
-        gstring[1]=newline[2];
-        gstring[2]=0;
-        len=strtoul(gstring,NULL,16);
-        for(ra=0;ra<(len+5);ra++)
-        {
-            gstring[0]=newline[(ra<<1)+1];
-            gstring[1]=newline[(ra<<1)+2];
-            gstring[2]=0;
-            hexline[ra]=(unsigned char)strtoul(gstring,NULL,16);
-        }
-        checksum=0;
-        for(ra=0;ra<(len+5);ra++) checksum+=hexline[ra];
-        //checksum&=0xFF;
-        if(checksum)
-        {
-            printf("checksum error <%u>\n",line);
-        }
-        add=hexline[1]; add<<=8;
-        add|=hexline[2];
-        //add|=addhigh;
-        if(add>RAMMASK)
-        {
-            printf("address too big 0x%08X\n",add);
-            //return(1);
-            continue;
-        }
-        t=hexline[3];
-        if(t!=0x02)
-        {
-            if(len&1)
-            {
-                printf("bad length\n");
-                return(1);
-            }
-        }
-
-        //:0011223344
-        //;llaaaattdddddd
-        //01234567890
-        switch(t)
-        {
-            case 0x00:
-            {
-                for(ra=0;ra<len;ra+=4)
-                {
-                    if(add>RAMMASK)
-                    {
-                        printf("address too big 0x%08X\n",add);
-                        break;
-                    }
-                    load_word(add++,hexline[ra+4+0],hexline[ra+4+1]);
-                    if(add>maxadd) maxadd=add;
-                }
-                break;
-            }
-            case 0x01:
-            {
-//                printf("End of data\n");
-                break;
-            }
-            default:
-            {
-                printf("UNKNOWN type %02X <%u>\n",t,line);
-                break;
-            }
-        }
-        if(t==0x01) break; //end of data
-    }
-
-    //printf("%u lines processed\n",line);
-    //printf("%08X\n",maxadd);
-
-    //for(ra=0;ra<maxadd;ra+=4)
-    //{
-        //printf("0x%08X: 0x%08X\n",ra,ram[ra>>2]);
-    //}
-
-    return(0);
-}
-
+extern int readhex ( FILE *fp );
+//-----------------------------------------------------------------------------
 unsigned short sext5 ( unsigned short x )
 {
     x&=0x001F;
     if(x&0x10) x|=0xFFE0;
     return(x);
 }
+//-----------------------------------------------------------------------------
 unsigned short sext6 ( unsigned short x )
 {
     x&=0x003F;
     if(x&0x20) x|=0xFFC0;
     return(x);
 }
+//-----------------------------------------------------------------------------
 unsigned short sext9 ( unsigned short x )
 {
     x&=0x01FF;
     if(x&0x100) x|=0xFE00;
     return(x);
 }
+//-----------------------------------------------------------------------------
 unsigned short sext11 ( unsigned short x )
 {
     x&=0x07FF;
     if(x&0x0400) x|=0xF800;
     return(x);
 }
-
-int main ( void )
+//-----------------------------------------------------------------------------
+int main ( int argc, char *argv[] )
 {
     unsigned int ra;
     unsigned int addr;
@@ -178,12 +59,23 @@ int main ( void )
     unsigned int rd,rs1,rs2,simm,dest;
     FILE *fp;
 
+    if(argc<2)
+    {
+        fprintf(stderr,".hex file not specified\n");
+        return(1);
+    }
+
     memset(mem,0xFF,sizeof(mem));
     memset(mem_hit,0x00,sizeof(mem_hit));
 
-    fp=fopen("test.asm.hex","rt");
-    if(fp==NULL) return(1);
+    fp=fopen(argv[1],"rt");
+    if(fp==NULL)
+    {
+        fprintf(stderr,"Error opening file [%s]\n",argv[1]);
+        return(1);
+    }
     if(readhex(fp)) return(1);
+    fclose(fp);
 
     for(addr=0;addr<=RAMMASK;addr++)
     {
@@ -280,8 +172,7 @@ int main ( void )
                     rd=(inst>>9)&7;
                     rs1=(inst>>6)&7;
                     simm=sext6(inst);
-                    dest=(addr+1+simm)&0xFFFF;
-                    printf("ldr r%u,r%u,0x%04X",rd,rs1,dest);
+                    printf("ldr r%u,[r%u,#0x%04X]",rd,rs1,simm);
                     if(simm&0x8000) printf(" ; -%u",(simm^0xFFFF)+1);
                     else            printf(" ; +%u",simm);
                     break;
@@ -291,8 +182,7 @@ int main ( void )
                     rd=(inst>>9)&7;
                     rs1=(inst>>6)&7;
                     simm=sext6(inst);
-                    dest=(addr+1+simm)&0xFFFF;
-                    printf("str r%u,r%u,0x%04X",rd,rs1,dest);
+                    printf("str r%u,[r%u,#0x%04X]",rd,rs1,simm);
                     if(simm&0x8000) printf(" ; -%u",(simm^0xFFFF)+1);
                     else            printf(" ; +%u",simm);
                     break;
@@ -366,5 +256,5 @@ int main ( void )
 
     return(0);
 }
-
-
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------

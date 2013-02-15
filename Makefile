@@ -1,8 +1,8 @@
 
 all :
-	gcc -o lc3sim lc3sim.c 
+	gcc -o lc3sim lc3sim.c readhex.c
 	gcc -o lc3asm lc3asm.c
-	gcc -o lc3dis lc3dis.c
+	gcc -o lc3dis lc3dis.c readhex.c
 
 clean :
 	rm -f lc3sim
