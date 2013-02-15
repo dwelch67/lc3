@@ -112,7 +112,7 @@ while assembling or unexpected results while running.
 0100 1oooooooooooo     jsr label
 0101 dddaaa000bbbb +   and rd,ra,rb
 0101 dddaaa1iiiiii +   and rd,ra,#immed
-0110 dddaaaooooooo +   ldr rd,[ra,#offset]
+0110 dddaaaooooooo +   ldr rd,ra,#offset
 1010 dddoooooooooo +   ldi rd,label
 1100 000aaa0000000     jmp ra
 1110 dddoooooooooo +   lea rd,label
@@ -120,7 +120,7 @@ while assembling or unexpected results while running.
 1100 0001110000000     ret
 1000 0000000000000     rti
 0011 sssoooooooooo     st rs,label
-1011 sssaaaooooooo     str rs,[ra,#offset]
+1011 sssaaaooooooo     str rs,ra,#offset
 1111 0000iiiiiiiii     trap immed
 
 

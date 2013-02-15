@@ -172,7 +172,7 @@ int main ( int argc, char *argv[] )
                     rd=(inst>>9)&7;
                     rs1=(inst>>6)&7;
                     simm=sext6(inst);
-                    printf("ldr r%u,[r%u,#0x%04X]",rd,rs1,simm);
+                    printf("ldr r%u,r%u,#0x%04X",rd,rs1,simm);
                     if(simm&0x8000) printf(" ; -%u",(simm^0xFFFF)+1);
                     else            printf(" ; +%u",simm);
                     break;
@@ -182,7 +182,7 @@ int main ( int argc, char *argv[] )
                     rd=(inst>>9)&7;
                     rs1=(inst>>6)&7;
                     simm=sext6(inst);
-                    printf("str r%u,[r%u,#0x%04X]",rd,rs1,simm);
+                    printf("str r%u,r%u,#0x%04X",rd,rs1,simm);
                     if(simm&0x8000) printf(" ; -%u",(simm^0xFFFF)+1);
                     else            printf(" ; +%u",simm);
                     break;

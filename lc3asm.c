@@ -176,7 +176,6 @@ unsigned int parse_immed ( unsigned int ra )
         for(;newline[ra];ra++)
         {
             if(newline[ra]==0x20) break;
-            if(newline[ra]==']') break;
             if(!hexchar[newline[ra]])
             {
                 printf("<%u> Error: invalid number\n",line);
@@ -198,7 +197,6 @@ unsigned int parse_immed ( unsigned int ra )
         for(;newline[ra];ra++)
         {
             if(newline[ra]==0x20) break;
-            if(newline[ra]==']') break;
             if(!numchar[newline[ra]])
             {
                 printf("<%u> Error: invalid number\n",line);
@@ -244,32 +242,6 @@ unsigned int parse_comma ( unsigned int ra )
 {
     for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
     if(newline[ra]!=',')
-    {
-        printf("<%u> Error: syntax error\n",line);
-        return(0);
-    }
-    ra++;
-    for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
-    return(ra);
-}
-//-------------------------------------------------------------------
-unsigned int parse_bracket_open ( unsigned int ra )
-{
-    for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
-    if(newline[ra]!='[')
-    {
-        printf("<%u> Error: syntax error\n",line);
-        return(0);
-    }
-    ra++;
-    for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
-    return(ra);
-}
-//-------------------------------------------------------------------
-unsigned int parse_bracket_close ( unsigned int ra )
-{
-    for(;newline[ra];ra++) if(newline[ra]!=0x20) break;
-    if(newline[ra]!=']')
     {
         printf("<%u> Error: syntax error\n",line);
         return(0);
@@ -872,17 +844,11 @@ int assemble ( void )
         if(strncmp(&newline[ra],"ldr ",4)==0)
         {
             ra+=4;
-            //ldr rd,[rs,#offset]
-            ra=parse_reg(ra); if(ra==0) return(1);
-            rd=rx;
-            ra=parse_comma(ra); if(ra==0) return(1);
-            ra=parse_bracket_open(ra); if(ra==0) return(1);
-            ra=parse_reg(ra); if(ra==0) return(1);
-            rs=rx;
+            //ldr rd,rs,#offset
+            ra=parse_two_regs(ra); if(ra==0) return(1);
             ra=parse_comma(ra); if(ra==0) return(1);
             ra=parse_pound(ra); if(ra==0) return(1);
             ra=parse_immed(ra); if(ra==0) return(1);
-            ra=parse_bracket_close(ra); if(ra==0) return(1);
             if(rest_of_line(ra)) return(1);
             if(check_simmed6(rx)) return(1);
             mem[curradd]=0x6000|(rd<<9)|(rs<<6)|(rx&0x003F);
@@ -981,17 +947,11 @@ int assemble ( void )
         if(strncmp(&newline[ra],"str ",4)==0)
         {
             ra+=4;
-            //str rd,[sr1,#offset]
-            ra=parse_reg(ra); if(ra==0) return(1);
-            rd=rx;
-            ra=parse_comma(ra); if(ra==0) return(1);
-            ra=parse_bracket_open(ra); if(ra==0) return(1);
-            ra=parse_reg(ra); if(ra==0) return(1);
-            rs=rx;
+            //str rd,rs,#offset
+            ra=parse_two_regs(ra); if(ra==0) return(1);
             ra=parse_comma(ra); if(ra==0) return(1);
             ra=parse_pound(ra); if(ra==0) return(1);
             ra=parse_immed(ra); if(ra==0) return(1);
-            ra=parse_bracket_close(ra); if(ra==0) return(1);
             if(rest_of_line(ra)) return(1);
             if(check_simmed6(rx)) return(1);
             mem[curradd]=0x7000|(rd<<9)|(rs<<6)|(rx&0x003F);
@@ -1010,7 +970,7 @@ int assemble ( void )
                 printf("<%u> Error: invalid trap vector\n",line);
                 return(1);
             }
-            mem[curradd]=0xF000|(rx);
+            mem[curradd]=0xF000|(rx&0xFF);
             mark[curradd]|=0x80000000;
             curradd++;
             if(rest_of_line(ra)) return(1);
