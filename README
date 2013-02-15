@@ -1,0 +1,97 @@
+
+This repository is for learning assembly language programming, and other
+things using the little computer 3 instruction set.
+
+http://en.wikipedia.org/wiki/LC-3
+
+---------------------------------------------------------------------
+
+This document is targetted toward average programmers.  C experience
+is not specifically required, but enough general programming knowledge
+to the point that you can read C programs is required as C will be used
+as a bridge between your programming knowledge and assembly language
+and the other topics discussed.
+
+The tools are all written in C so the ability to compile and run them
+is required.  They are written to be very portable and will hopefully
+compile and run on your system.
+
+---------------------------------------------------------------------
+
+What assembly language is not:
+
+Assembly language is not, generally, the language you use for device
+drivers, nor is the primary language for bare metal program or other
+forms of low level programming.  Mostly C is used for such things but
+other languages work as well.  Yes some assembly is required for some
+things, but it is way less than one percent of the overall code, in
+general.   And yes some folks use it heavily for fun or to prove a point
+or other reasons.
+
+Assembly language is not a unversal language for all processors in the
+sense that there is one assembly language and one instruction set.  This
+instruction set should really not take more than an evening to learn for
+an average programmer (any other language C, Python, whatever), the
+things that might cause a hang up would/should cause a similar hang up
+in any other language (C, Python, Java, whatever) like bitwise logical
+operations.  Learning this lc-3 instruction set does not mean you can
+then run off and program in assembly language for your phone or computer.
+Those devices use a different instruction set and if you want to know
+the assembly language for those you need to learn that separately.  The
+good side of this is that each new instruction set you learn is much
+easier than the last, much easier than learning multiple high level
+languages (C, Python, Java, whatever).
+
+Generally assembly languages are not standardized, what does conform
+to a hard standard is the instruciton set, the machine code, the bits
+that make the processor do things.  If there is more than one assembler
+(the program, like a compiler, that converts the assembly language
+source code into something lower level, usually machine code) for a
+particular instruciton set, each author may choose to implement a
+completely different "language" as in the keywords and other syntax
+that make up the programming language.  The GNU assembler is well known
+for messing up instruction sets.  In this case (lc-3) I am not going
+to conform to the assembly language supported by the inventors text book.
+
+What assembly language is:
+
+Assembly language is a programming language like C or Python or Java.
+
+Assembly language instructions generally attempt to have a one to one
+relationship with machine code instructions.  Another way to say this
+or think about this is that often a single line of assembly language
+results in a single machine code instruction.  There are of course
+exceptions, directives used to communicate something to the assembler.
+
+High level languages C, Python, Java are converted from the text file
+form into something lower using a compiler.  The term compiler is not
+normally used for assembly language, instead the term assembler is used.
+Unfortunately, it is not uncommon to see the term assembler used as a
+reference to the language not the tool used to convert the language into
+machine code.
+
+---------------------------------------------------------------------
+
+The little computer 3, lc-3, is an educational instruction set, it is
+certainly possible to turn it into hardware and do useful things with
+it but it is better served as an educational tool.  A stepping stone
+up to larger more complicated instruction sets.
+
+This tutorial and repository will attempt to show you not only how to
+get started in assembly language programming, but it will do this
+by showing you the machine code, showing you at least one instruction
+set simulator, an assembler and a disassembler.
+
+Most of the assembly language lessons are delivered in a way where you
+are expected to type them in yourself, assemble and run them with the
+simulator and get the same results as the tutorial.  You of course could
+cut and paste them instead of typing but then you lose a major step in
+the education, and that is the debugging of your program, either errors
+while assembling or unexpected results while running.
+
+
+
+
+
+
+
