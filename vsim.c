@@ -58,7 +58,7 @@ unsigned short sext5 ( unsigned short x )
 }
 unsigned short sext6 ( unsigned short x )
 {
-    x&0x3F;
+    x&=0x3F;
     if(x&0x20) x|=0xFFC0;
     return(x);
 }

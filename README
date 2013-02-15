@@ -85,10 +85,23 @@ set simulator, an assembler and a disassembler.
 Most of the assembly language lessons are delivered in a way where you
 are expected to type them in yourself, assemble and run them with the
 simulator and get the same results as the tutorial.  You of course could
-cut and paste them instead of typing but then you lose a major step in
-the education, and that is the debugging of your program, either errors
-while assembling or unexpected results while running.
+cut and paste them instead of typing but then you leave a hole in your
+education.  The typing and debugging side of programming using these
+tools and this language.
 
+You will need appendix A from this book:
+
+http://highered.mcgraw-hill.com/sites/0072467509/
+
+The direct link is here:
+
+http://highered.mcgraw-hill.com/sites/dl/free/0072467509/104653/PattPatelAppA.pdf
+
+Let me know if these links dont work or if this material becomes
+unavailable.
+
+----------------------------------------
+Lesson 0: Building and testing the tools
 
 
 
@@ -108,19 +121,21 @@ while assembling or unexpected results while running.
 0001 dddaaa000bbbb +   add rd,ra,rb
 0001 dddaaa1iiiiii +   add rd,ra,#immed
 0010 dddoooooooooo +   ld rd,label
+0011 sssoooooooooo     st rs,label
 0100 000aaa0000000     jsrr ra
 0100 1oooooooooooo     jsr label
 0101 dddaaa000bbbb +   and rd,ra,rb
 0101 dddaaa1iiiiii +   and rd,ra,#immed
 0110 dddaaaooooooo +   ldr rd,ra,#offset
-1010 dddoooooooooo +   ldi rd,label
-1100 000aaa0000000     jmp ra
-1110 dddoooooooooo +   lea rd,label
-1001 dddaaa1111111 +   not rd,ra
-1100 0001110000000     ret
+0111 sssaaaooooooo     str rs,ra,#offset
 1000 0000000000000     rti
-0011 sssoooooooooo     st rs,label
-1011 sssaaaooooooo     str rs,ra,#offset
+1001 dddaaa1111111 +   not rd,ra
+1010 dddoooooooooo +   ldi rd,label
+1011 dddoooooooooo +   sti rd,label
+1100 000aaa0000000     jmp ra
+1100 0001110000000     ret (jmp r7)
+1101 1101xxxxxxxxx     undefined
+1110 dddoooooooooo +   lea rd,label
 1111 0000iiiiiiiii     trap immed
 
 

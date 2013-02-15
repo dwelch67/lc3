@@ -1028,7 +1028,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset9(rd))
                         {
-                            printf("<%u> Error: branch too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: branch too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x01FF;
@@ -1041,7 +1041,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset9(rd))
                         {
-                            printf("<%u> Error: ld too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: ld too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x01FF;
@@ -1054,7 +1054,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset9(rd))
                         {
-                            printf("<%u> Error: ldi too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: ldi too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x01FF;
@@ -1067,7 +1067,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset11(rd))
                         {
-                            printf("<%u> Error: jsr too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: jsr too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x07FF;
@@ -1080,7 +1080,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset9(rd))
                         {
-                            printf("<%u> Error: lea too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: lea too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x01FF;
@@ -1093,7 +1093,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset9(rd))
                         {
-                            printf("<%u> Error: st too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: st too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x01FF;
@@ -1106,7 +1106,7 @@ int main ( int argc, char *argv[] )
                         rd=rx-(rs+1);
                         if(check_offset9(rd))
                         {
-                            printf("<%u> Error: sti too far\n",lab_struct[ra].line,inst);
+                            printf("<%u> Error: sti too far\n",lab_struct[ra].line);
                             return(1);
                         }
                         inst|=rd&0x01FF;
