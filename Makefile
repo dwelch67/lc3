@@ -1,5 +1,5 @@
 
-all :
+gcc :
 	gcc -o lc3sim lc3sim.c readhex.c
 	gcc -o lc3asm lc3asm.c
 	gcc -o lc3dis lc3dis.c readhex.c
@@ -7,7 +7,6 @@ all :
 
 
 clang:
-
 	clang -o lc3sim lc3sim.c readhex.c
 	clang -o lc3asm lc3asm.c
 	clang -o lc3dis lc3dis.c readhex.c

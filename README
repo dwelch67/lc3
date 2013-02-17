@@ -1,4 +1,15 @@
 
+This is a work in progress....
+
+
+
+
+
+
+
+
+
+
 This repository is for learning assembly language programming, and other
 things using the little computer 3 instruction set.
 
@@ -103,6 +114,137 @@ unavailable.
 ----------------------------------------
 Lesson 0: Building and testing the tools
 
+These tools were written to be portable, so they should build and work
+on most systems.  Windows, Linux, Apple, etc.
+
+If you dont already have a C compiler either a gcc or clang/llvm based
+compiler, pre-built binaries, should be easy to come by.  The Makefile
+shows the command lines for each of the tools
+
+gcc :
+    gcc -o lc3sim lc3sim.c readhex.c
+    gcc -o lc3asm lc3asm.c
+    gcc -o lc3dis lc3dis.c readhex.c
+    gcc -o vsim vsim.c readhex.c
+
+
+clang:
+    clang -o lc3sim lc3sim.c readhex.c
+    clang -o lc3asm lc3asm.c
+    clang -o lc3dis lc3dis.c readhex.c
+    clang -o vsim vsim.c readhex.c
+
+If you have make then the default
+
+> make
+
+should build using gcc/gnu, if you use clang then
+
+> make clang
+
+will build using the clang/llvm compiler.
+
+To verify the tools work
+
+> ./lc3asm test.asm
+(on windows it might be in the form .\lc3asm.exe instead)
+
+> ./lc3asm test.asm
+label0000: [0x00003003] [top] 0
+label0001: [0x00000005] [top] 1
+0x3000: 0x9040
+0x3001: 0x5060
+0x3002: 0x1027
+0x3003: 0xF067
+0x3004: 0x103F
+0x3005: 0x0BFD
+0x3006: 0xF025
+
+> ./lc3dis test.asm.hex
+0x3000: 0x9040 not r0,r1
+0x3001: 0x5060 and r0,r1,#0x0000
+0x3002: 0x1027 add r0,r0,#0x0007
+0x3003: 0xF067 trap 0x67
+0x3004: 0x103F add r0,r0,#0xFFFF
+0x3005: 0x0BFD brnp 0x3003 ; -3
+0x3006: 0xF025 trap 0x25
+
+> ./lc3sim test.asm.hex
+show 0x0007
+show 0x0006
+show 0x0005
+show 0x0004
+show 0x0003
+show 0x0002
+show 0x0001
+halt
+
+Assuming test.asm has not been changed the output from these three tools
+should match the above.
+
+----------------------------------------
+Lesson 1: Getting started
+
+Reminder, don't cut and paste, type the following program into a text
+editor, using the commands from lesson one (lc3asm, lc3sim) assemble
+and run the program.
+
+---- lesson 1 ----
+add r0,r0,#1
+trap 0x67
+add r0,r0,#2
+trap 0x67
+trap 0x25
+---- lesson 1 ----
+
+./lc3asm lesson1.asm
+0x3000: 0x1021
+0x3001: 0xF067
+0x3002: 0x1022
+0x3003: 0xF067
+0x3004: 0xF025
+
+./lc3sim lesson1.asm.hex
+show 0x1235
+show 0x1237
+halt
+
+What does it do?
+
+Here is where we dive in.  First, registers, registers in the context of
+processors are similar to variables in a programming language, except
+there are a fixed number of them.  Different processor architectures
+have a different number of registers.  In general some registers are
+considered general purpose and some special purpose, again different
+architectures have different mixes of special and general and it is not
+uncommon to have some special registers that can be used or accessed
+as general purpose registers.
+
+The lc3 architecture has 8 registers, named r0,r1,r2,...,r7.  They are
+all considered general purpose, but a couple do have a special purpose
+as well.  R6 is used as the stack pointer (The stack and stack pointer
+will be covered in a future lesson).  R7 is used as a return address
+for function/subroutine calls (a future lesson).
+
+Now in general processors do not actually halt, you turn them on,
+they start up based on some known rules, and then run forever.  When
+you run a program on your computer, that program may start and finish
+but the operating system keeps running.  Even if it shows 0% cpu usage
+that means applications, the operating system keeps running, it has an
+idle loop that measures how much time is the operating system idling
+vs running other software.  It is still running.  There are some
+microcontrollers, that are designed to hibernate or go into some sort
+of low power mode that has a fast wake up, like pressing the button on
+your television remote control.   For educational purposes this
+
+
+
+
+
+
+
+
+
 
 
 
@@ -143,5 +285,8 @@ Lesson 0: Building and testing the tools
 
 
 
+
+
+This is a work in progress....
 
 
