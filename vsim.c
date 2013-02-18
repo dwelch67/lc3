@@ -383,7 +383,7 @@ int sim ( void )
 void reset ( void )
 {
     pc=0x3000;
-    psr=0;
+    psr=2;
     reg[0]=0;
     reg[1]=0;
     reg[2]=0;

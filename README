@@ -189,13 +189,13 @@ Reminder, don't cut and paste, type the following program into a text
 editor, using the commands from lesson one (lc3asm, lc3sim) assemble
 and run the program.
 
----- lesson 1 ----
+;---- lesson 1 ----
 add r0,r0,#1
 trap 0x67
 add r0,r0,#2
 trap 0x67
 trap 0x25
----- lesson 1 ----
+;---- lesson 1 ----
 
 ./lc3asm lesson1.asm
 0x3000: 0x1021
@@ -235,7 +235,343 @@ idle loop that measures how much time is the operating system idling
 vs running other software.  It is still running.  There are some
 microcontrollers, that are designed to hibernate or go into some sort
 of low power mode that has a fast wake up, like pressing the button on
-your television remote control.   For educational purposes this
+your television remote control.   For educational purposes this processor
+does have a halt command so that programs like the one above can run
+briefly then halt.  It is not uncommon for a processor architecture to
+have a specific instruction for making system calls.  System calls
+meaning a place where the operating system in a loose sense of the term
+can wait for applications to ask for something from the operating system
+printing, file I/O, etc.  The lc3 architecture uses the trap instruction
+for system calls.  The format of the trap instruction is
+
+trap vector
+
+where vector is a number from 0 to 255
+
+The vector 0x25 has been defined in the lc3 documentation as halt.  My
+simulator also uses that trap to halt.  I have added my own trap, number
+0x67 to print the contents of register r0, as a debugging and
+demonstration tool.  For my simulators these are done using a back door
+a non-realistic trick in the simulator and not actual lc3 code talking
+to virtual lc3 hardware to perform this action.  Both actions (0x25 and
+0x67) could be done using lc3 virtual hardware and lc3 software.
+
+There are two forms of the add instruction
+
+add rd,sr1,sr2
+add rd,sr1,#immed5
+
+The first of the two performs the operation rd = sr1 + sr2, where rd,
+sr1, and sr2 are registers.  Any of the 8 registers can be used in any
+of these three places, you do not have to repeat any registers
+
+add r1,r2,r3 ; r1 = r2 + r3
+
+but you could if you wanted to
+
+add r1,r1,r1 ; r1 = r1 + r1
+
+The other form has two registers and an immediate
+
+add rd,sr1,#immed5 ; rd = sr1 + immed
+
+immed5 is a sign extended 5 bit immediate.  The term immediate means a
+constant that is encoded in the instruction itself.  We will cover the
+instruction encoding later, for now understand that this form of the
+add instruction has 5 bits for an immediate value and the most
+significant of those bits is sign extended to create a 16 bit number.
+
+0xxxx = 000000000000xxxx
+1xxxx = 111111111111xxxx
+
+Where x can be any combination of bits from 0000 to 1111.
+
+0000000000000000
+0000000000000001
+0000000000000010
+...
+0000000000001101
+0000000000001110
+0000000000001111
+
+1111111111110000
+1111111111110001
+1111111111110010
+...
+1111111111111101
+1111111111111110
+1111111111111111
+
+0x0000 to 0x000F and 0xFFF0 to 0xFFFF.
+
+If not already you should strengthen your understanding of twos complement
+this has nothing really to do with assembly language as it is used in
+many/all languages.  In this case
+
+0x0000 to 0x000F 0 to 15
+0xFFF0 to 0xFFFF -16 to -1
+
+Larger constants will be covered in another lesson.
+
+With hardware, unless it is well defined, never assume the hardware
+is initialized to anything.  General purpose registers, and memory are
+two places in particular where you should not make assumptions.  My
+lc3sim.c simulator as of this writing resets all the registers to the
+value 0x1234, but dont assume that will always be the case.  In order
+to not overly complicate the example, this example does not manage the
+initialization of r0 properly, it just uses it as is.  The purpose of
+this example is to demonstrate the add immediate so it works despite
+the initial value of r0.
+
+At this point we should be ready to walk through the code.
+
+add r0,r0,#1
+
+this means r0 = r0 + 1
+
+trap 0x67
+
+this is a system call specific to this simulator it prints out the
+contents of r0.  The output of lc3sim below, the first show line 0x1235
+is the result of this trap 0x67 instruction.
+
+add r0,r0,#2
+
+This performs the operation r0 = r0 + 2.  if r0 were 0x1235 as we see
+from the prior trap 0x67, then r0 = 0x1235 + 2 = 0x1237
+
+trap 0x67
+
+outputs the current state of r0, which is now 0x1237 as expected
+
+trap 0x25
+
+this halts the simulation shown as a halt below
+
+./lc3sim lesson1.asm.hex
+show 0x1235
+show 0x1237
+halt
+
+----------------------------------------
+Lesson 2: Unconditional Branch
+
+;---- lesson 2 ----
+trap 0x67
+add r0,r0,#1
+brnzp skip
+add r0,r0,#2
+skip:
+trap 0x67
+trap 0x25
+;---- lesson 2 ----
+
+./lc3asm lesson.asm
+label0000: [0x00000002] [skip] 1
+label0001: [0x00003004] [skip] 0
+0x3000: 0xF067
+0x3001: 0x1021
+0x3002: 0x0E01
+0x3003: 0x1022
+0x3004: 0xF067
+0x3005: 0xF025
+
+./lc3sim lesson.asm.hex
+show 0x1234
+show 0x1235
+halt
+
+Some assembly languages use the word branch, some use jump, some use
+both.  From a programmers perspective processor instructions execute
+linearly in the order written by the programmer, until you hit a branch
+or jump which causes execution to conditionally or unconditionally
+jump to a new location in the code.  In C for example
+
+
+a = 7;
+if(b == 12)
+{
+  a++;
+}
+c = a + 10;
+
+there are two possible paths through this code
+
+a = 7;
+c = a + 10;
+
+or
+
+a = 7;
+a++;
+c = a + 10;
+
+The a++; is conditionally executed, otherwise it is skipped, the code
+jumps over the contents in the brackets and executes what is after. Code
+like this might not have much value on the surface, but it demonstrates
+an unconditional branch, the a++; is never executed, the execution jumps
+over and continues after the if statement.
+
+a = 7;
+if(0)
+{
+  a++;
+}
+c = a + 10;
+
+
+trap 0x67
+
+start off by seeing what r0 is right now, in this case 0x1234 (remember
+never assume its power on state).
+
+add r0,r0,#1
+
+r0 = r0 + 1 = 0x1235
+
+brnzp skip
+
+For the lc3 processor this is an unconditional branch.  Why it is
+unconditional and what the nzp mean are for a future lesson.  What it
+means in this form is "no matter what jump to the code starting at/after
+the label skip:
+
+add r0,r0,#2
+
+IF EXECUTED this code would perform r0 = r0 + 2 = 0x1235 + 2 = 0x1237
+
+skip:
+
+This is a label, for my lc3asm assembly language a label cannot start
+with a number, cannot have spaces, cannot be too long, and ends with
+a colon.  The unconditional branch above is branching/jumping the code
+execution to this label.  Basically the add r0,r0,#2 is being passed
+over and not executed.
+
+trap 0x67
+
+print out the current state of r0, we see 0x1235 so that confirms that
+the add r0,r0,#2 was not executed
+
+trap 0x25
+
+halt the simulation
+
+----------------------------------------
+Lesson 3: Logical operations AND and NOT
+
+;---- lesson 3 ----
+trap 0x67
+add r1,r0,#0
+not r0,r1
+trap 0x67
+and r0,r0,r1
+trap 0x67
+add r0,r0,#7
+trap 0x67
+trap 0x25
+;---- lesson 3 ----
+
+./lc3asm lesson.asm
+0x3000: 0xF067
+0x3001: 0x1220
+0x3002: 0x9040
+0x3003: 0xF067
+0x3004: 0x5001
+0x3005: 0xF067
+0x3006: 0x1027
+0x3007: 0xF067
+0x3008: 0xF025
+
+./lc3sim lesson.asm.hex
+show 0x1234
+show 0xEDCB
+show 0x0000
+show 0x0007
+halt
+
+For whatever reason it seems to me that folks get tripped up in bit
+manipulation and logic operations more in assembly language than in
+other languages.  Most/all of the languages have logic operations as well
+AND, OR, NOT, XOR, etc and there is little to no difference at the
+assembly language level.
+
+Being a minimalist instruction, lc3 only has NOT and AND operations,
+OR, XOR, etc have to be derived from those (future lesson).  The NOT
+operation means if the input bit is a 0 the output bit is a 1, if the
+input bit is a 1, the output bit is a 0.  The operation does this
+on a bit by bit basis each bit in the input register is processed
+separately from a functional perspective from the other bits in that
+register.  So
+
+0001001000110100 input
+1110110111001011 output
+
+With pencil and paper first you need to be able to get from hex to
+binary.  I used to keep a strip of paper taped to my monitor with hex and
+binary for the numbers 0 - 15, it didnt take long to memorize them, for
+decimal to/from hex I just use a calculator.  Once written as binary
+(the above input number is 0x1234 BTW) then the not operation is trivial
+where you see a 0 write a 1 where you see a 1 write a 0.
+
+The AND operation is also a logical operation but involves two inputs
+and one output.  The truth table is as follows
+
+00 0
+01 0
+10 0
+11 1
+
+The left two columns are the possible combinations of inputs for two
+bits.  The right column is the result of the and operation of those
+two input bits on a line.  Basically if both input bits are ones then
+the output is a one otherwise the output is a zero.  Or another
+way to say this is
+
+anything anded with 0 is 0
+
+00 0
+10 0
+
+and anything anded with 1 is itself
+
+01 0
+11 1
+
+it commutes, the first operand could be the anything anded with zero
+
+00 0
+01 0
+
+or anything anded with one
+
+10 0
+11 1
+
+If I perform the operation 0x1234 AND 0x00FF, we look at these per
+bit which means per column, if both items in the column are a one then
+the result is a one, otherwise the result is a zero
+
+0001001000110100
+0000000011111111 AND
+=====================
+0000000000110100
+
+so 0x1234 AND 0x00FF = 0x0034
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
