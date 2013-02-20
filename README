@@ -559,13 +559,62 @@ the result is a one, otherwise the result is a zero
 
 so 0x1234 AND 0x00FF = 0x0034
 
+Walking through the program
 
+trap 0x67
 
+this shows us what the current state of r0 is (0x1234)
 
+add r1,r0,#0
 
+r1 = r0 + 0, basically copy r0 to r1
 
+not r0,r1
 
+perform a bit by bit not operation on r1 the result goes in r0
 
+0001001000110100  r1
+1110110111001011  r0
+
+r0 = ~r1 = 0xEDCB
+
+trap 0x67
+
+print out r0, and it confirms r0 = 0xEDCB
+
+and r0,r0,r1
+
+r0 = r0 AND r1
+
+1110110111001011  r0
+0001001000110100  r1
+=====================
+0000000000000000  r0
+
+this was intentional, if you think about it, to get a result of 1 out of
+an and you need both inputs to be a 1.  One register is the inverse of
+the other, no matter what r0 was before all of this started this is
+guaranteed to never have a condition where there are two ones.
+
+trap 0x67
+
+this confirms r0 = 0x0000
+
+add r0,r0,#7
+
+r0 = r0 + 7 = 7
+
+trap 0x67
+
+print out the 0x0007
+
+trap 0x25
+
+halt
+
+There will be faster ways to do this in future examples, but this
+sequence demonstrated a sequence to zero out r0 by anding the not of
+r0 to itself.
 
 
 
