@@ -183,6 +183,11 @@ int sim ( void )
                     printf("show 0x%04X\n",reg[0]);
                 }
                 else
+                if((inst&0xFF)==0x68)
+                {
+                    printf("psr 0x%04X\n",psr);
+                }
+                else
                 if((inst&0xFF)==0x25)
                 {
                     printf("halt\n");

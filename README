@@ -617,13 +617,345 @@ sequence demonstrated a sequence to zero out r0 by anding the not of
 r0 to itself.
 
 
+----------------------------------------
+Lesson 4: Flags and conditional branch
+
+;---- lesson 4 ----
+trap 0x67
+add r1,r0,#0
+not r0,r1
+trap 0x67
+and r0,r0,r1
+trap 0x67
+add r0,r0,#7
+trap 0x67
+top:
+  add r0,r0,#0xFFFF
+  trap 0x67
+  trap 0x68
+  brnp top
+trap 0x25
+;---- lesson 4 ----
+
+./lc3asm lesson.asm
+label0000: [0x00003008] [top] 0
+label0001: [0x0000000B] [top] 1
+0x3000: 0xF067
+0x3001: 0x1220
+0x3002: 0x9040
+0x3003: 0xF067
+0x3004: 0x5001
+0x3005: 0xF067
+0x3006: 0x1027
+0x3007: 0xF067
+0x3008: 0x103F
+0x3009: 0xF067
+0x300A: 0xF068
+0x300B: 0x0BFC
+0x300C: 0xF025
+./lc3sim lesson.asm.hex
+show 0x1234
+show 0xEDCB
+show 0x0000
+show 0x0007
+show 0x0006
+psr 0x0001
+show 0x0005
+psr 0x0001
+show 0x0004
+psr 0x0001
+show 0x0003
+psr 0x0001
+show 0x0002
+psr 0x0001
+show 0x0001
+psr 0x0001
+show 0x0000
+psr 0x0002
+halt
+
+So lesson 3 got us to the point where register 0 was zeroed out then
+7 was added to leave r0 with a 7.  This example shows a simple count
+down loop.  The instruction set documentation has a plus sign (+)
+next to many of the instructions.  This plus sign indicates the psr
+(processor state register) flags are changed as a result of that operation.
+Like the PC in this architecture, the PSR is not directly visible to
+the programmer.
+
+What are flags?  First off not all processors use flags, second processors
+that use flags dont use the same flags or use them in the same way.
+This processor has an interesting mix of flags not normally seen.  This
+processor has three flags the n flag, when set indicating the result
+of the operation was negative (the msbit, bit 15, was set, think about
+twos complement).  The z flag which indicates the result was exactly
+zero and the p flag which indicates the result was positive.
+
+From the lc3 instruction set reference:
+
+The condition codes are set, based on whether that result, taken as a
+16-bit 2’s complement integer, is negative (N = 1; Z, P = 0),
+zero (Z = 1; N, P = 0), or positive (P = 1; N, Z = 0).
+All other LC-3 instructions leave the condition codes unchanged.
+
+So, basically you can only have one flag set at a time through normal
+operations, and also you will always have at least one flag set.  There
+is a way to mess with these rules by messing with the psr, that is a
+separate discussion.  For this example only one of the flags is set
+at a time and as important at least one flag is set.
+
+  add r0,r0,#0xFFFF
+
+We dont have a subtract, we dont need a subtract, in logic a subtract
+uses the add logic anyway, remember with twos complement to negate
+a number you invert and add one.  If I want to subtract 1
+
+0x0001  one
+0xFFFE  invert
+0xFFFF  and add one
+
+so subtracting 1 is the same as adding -1.  The add immediate allows
+us to add small negative numbers so
+
+  add r0,r0,#0xFFFF
+
+means r0 = r0 - 1;
+
+With my lc3 assembler a label is of the form:
+
+top:
+
+some text that doesnt start with a zero, has no spaces and ends with
+a colon.  Not unlike a label in C which you would use with a goto if
+using labels and goto's were not considered a bad thing in C.  Despite
+being bad perhaps you did at least learn how to use them.  Will be used
+pretty much the same way here:
+
+top:
+r0 = r0 - 1;
+if(r0 != 0) goto top;
+
+We saw the add r0,r0,#0xFFFF implements the r0 = r0 - 1;
+
+trap 0x67 we know prints out the value of r0
+trap 0x68 prints out the psr
+
+note that in the reference manual the trap instruction itself DOES NOT
+modify the flags.  If you look at the source we see that this simulator
+does not actually call other code for the trap 0x67 (that other code
+COULD modify the flags).  Assume here that the flags are not touched
+these traps are so you can see what is going on, you normally would not
+have them there nor take the risk that they could be implemented with
+code that doesnt preserve the psr.
+
+So the flags dont change between the add and the brnp
+
+  brnp top
+
+What is brnp?  The instruction is really br for branch.  It has three
+optional modifiers one for checking the n bit, one for checking the z
+bit and one for checking the p bit.  We are looking for the result of
+the subtract to be zero.  When the result of the subtract is a zero the
+n bit is 0, the z bit is 1, the p bit is 0.
+
+If you read the description of the br instruciton in the reference manual
+you will see
+
+if ((n AND N) OR (z AND Z) OR (p AND P))
+PC = PC‡ + SEXT(PCoffset9);
+
+The logic compares the n, z, and p test bits in the instruction with the
+N, Z, and P flags in the PSR.  If any of those comparisions using an
+and is true then the branch happens.  If all three of those comparisons
+is false, a zero, then the branch does not happen the code falls through.
+
+The syntax brnp means test for the n and p flags.  We are looking for
+the case where the z flag is set and the n and p flags are zero.  So
+brnp means we want to branch whenever the z flag is not set, when the
+z flag is not set either the n or p flag is set and that would result
+in a branch.
+
+The syntax in the assembly language is to specify the label to branch
+to, just like in C.  The assembler will take care of figuring out the
+number of instructions to jump over and as a result will figure out the
+machine code for this instruction.
+
+We can see from the trap 0x67 (show r0) and trap 0x68 (psr) outputs
+
+show 0x0006
+psr 0x0001
+show 0x0005
+psr 0x0001
+show 0x0004
+psr 0x0001
+show 0x0003
+psr 0x0001
+show 0x0002
+psr 0x0001
+show 0x0001
+psr 0x0001
+show 0x0000
+psr 0x0002
+halt
+
+r0 is having one subracted per loop, 6,5,4,3... being positive numbers
+the p flag is set for the non-zero numbers.  When the result is a zero
+the psr changes to 0x0002 which is the z flag set, the n and p flags
+are zero.  So the brnp does not happen, the code falls through to the
+trap 0x25 which is a halt.
+
+So in summary a brnp means if the n or p flags is set then branch
+otherwise dont.  Another way to say that is if the z flag is not set
+then branch.   Likewise a brnz would mean if the n or z flags are set
+then branch otherwise dont.  Or if the p flag is not set then branch.
+
+----------------------------------------
+Lesson 5: The load instruction and more on branching
+
+;---- lesson 5 ----
+trap 0x67
+ld r0,abc
+trap 0x67
+top:
+  add r0,r0,#0xFFFF
+  trap 0x67
+  trap 0x68
+  brz get_out
+  brnzp top
+get_out:
+trap 0x25
+
+abc: .word 0x0007
+;---- lesson 5 ----
 
 
+./lc3asm lesson.asm
+label0000: [0x00000001] [abc] 1
+label0001: [0x00003003] [top] 0
+label0002: [0x00000006] [get_out] 1
+label0003: [0x00000007] [top] 1
+label0004: [0x00003008] [get_out] 0
+label0005: [0x00003009] [abc] 0
+0x3000: 0xF067
+0x3001: 0x2007
+0x3002: 0xF067
+0x3003: 0x103F
+0x3004: 0xF067
+0x3005: 0xF068
+0x3006: 0x0401
+0x3007: 0x0FFB
+0x3008: 0xF025
+0x3009: 0x0007
+
+./lc3sim lesson.asm.hex
+show 0x1234
+show 0x0007
+show 0x0006
+psr 0x0001
+show 0x0005
+psr 0x0001
+show 0x0004
+psr 0x0001
+show 0x0003
+psr 0x0001
+show 0x0002
+psr 0x0001
+show 0x0001
+psr 0x0001
+show 0x0000
+psr 0x0002
+halt
+
+This example is very similar to the previous example.  The primary
+differences are this example uses the load (ld) instruction to read
+a value from memory and place it in a register.  And the branching
+in the loop is a little different, instead of branching if not zero
+the loop is an infinite loop with an unconditional branch, inside
+the loop there is a branch if zero to get out of the loop.  In C:
+
+r0 = 7;
+top:
+  r0 = r0 - 1;
+  if(r0==0) goto get_out;
+  goto top;
+get_out:
 
 
+ld r0,abc
 
+The assembler makes life easy by letting you use labels for loading or
+storing values.  Load (ld) is used if you are going from memory to a
+register, basically it is a read from memory.  Store (st) is used for
+going from a register to memory, basically a write.  In this case there
+is a label abc which is followed by a .word directive.  For this
+architecture/assembler a word is defined as 16 bits the .word directive
+tells the assembler the value that follows needs to be put in the program
+at this location.  Unless you are putting machine code in your program
+you want to avoid using a .word in an execution path.  You normally
+dont want to execute .word lines.
 
+abc: .word 0x0007
 
+The value at abc at assembly time is 0x0007.  So basically
+
+ld r0,abc
+
+In one instruction replaces these steps in the prior two lessons.
+
+add r1,r0,#0
+not r0,r1
+and r0,r0,r1
+add r0,r0,#7
+
+Even better the add immediate is very limited in what immediate values
+can be used.  Where a .word entry can hold any bit pattern, for example
+
+ld r0,xyz
+...
+xyz:
+   .word 0x1234
+
+Would put 0x1234 in r0, but this is illegal:
+
+add r1,r0,#0
+not r0,r1
+and r0,r0,r1
+add r0,r0,#0x1234
+
+It would take several add instructions to get 0x1234 into r0.
+
+  brz get_out
+  brnzp top
+get_out:
+
+brz means branch if the z flag is set.  When r0 contains a 1 and then
+we subtract 1 (add 0xFFFF) the result is r0 equals zero.  At that time
+the z flag is set, the n and p flags are not set.  So a branch if zero
+will branch, which hops over the brnzp instruction and gets us out of
+the loop.  If the z flag is not set then we execute the brnzp instruction
+which is also known as an unconditional branch.  We assume that at least
+one of the flags is set at all times so a brnzp means branch if n or
+z or p is set, which should always be true.  So
+
+top:
+  ...
+  brnzp top
+
+Is an infinite loop
+
+  brz get_out
+  ...
+get_out:
+
+is a conditional branch that gets us out of the loop.
+
+Another way to visualize this program in C is:
+
+r0 = 7;
+while(1)
+{
+   r0 = r0 - 1;
+   if(r0==0) break;
+}
 
 
 
