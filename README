@@ -958,6 +958,1115 @@ while(1)
 }
 
 
+----------------------------------------
+Lesson 6: The store instruction
+
+;---- lesson 6 ----
+ld r0,abc
+add r0,r0,#0x9
+st r0,xyz
+ld r0,abc
+trap 0x67
+ld r0,xyz
+trap 0x67
+trap 0x25
+
+abc: .word 0x1234
+xyz: .word 0xABCD
+;---- lesson 6 ----
+
+./lc3asm lesson.asm
+label0000: [0x00000000] [abc] 1
+label0001: [0x00000002] [xyz] 1
+label0002: [0x00000003] [abc] 1
+label0003: [0x00000005] [xyz] 1
+label0004: [0x00003008] [abc] 0
+label0005: [0x00003009] [xyz] 0
+0x3000: 0x2007
+0x3001: 0x1029
+0x3002: 0x3006
+0x3003: 0x2004
+0x3004: 0xF067
+0x3005: 0x2003
+0x3006: 0xF067
+0x3007: 0xF025
+0x3008: 0x1234
+0x3009: 0xABCD
+
+./lc3sim lesson.asm.hex
+show 0x1234
+show 0x123D
+halt
+
+from lesson 5 we know that load means from ram to a register, a read,
+store means from register to ram, a write.
+
+ld r0,abc
+
+read from memory at/after label abc which is 0x1234, r0 = 0x1234
+
+add r0,r0,#0x9
+
+r0 = r0 + 9 = 0x123D
+
+st r0,xyz
+
+store r0 to memory at/after label xyz, so the 0xABCD is overwritten
+with 0x123D
+
+ld r0,abc
+
+load r0 with the value 0x1234
+
+trap 0x67
+
+show 0x1234
+
+ld r0,xyz
+
+load r0 with the value 0x123D
+
+trap 0x67
+
+show 0x123D
+
+trap 0x25
+
+halt
+
+----------------------------------------
+Lesson 7: Load and store indirect and load effective address
+
+;---- lesson 7 ----
+lea r0,here
+st r0,not_here
+ld r1,abc
+sti r1,not_here
+ldi r0,not_here
+trap 0x67
+ld r0,not_here
+trap 0x67
+ld r0,here
+trap 0x67
+trap 0x25
+
+not_here: .word 0x5678
+abc: .word 0x1234
+here: .word 0xABCD
+;---- lesson 7 ----
+
+./lc3asm lesson.asm
+label0000: [0x00000000] [here] 1
+label0001: [0x00000001] [not_here] 1
+label0002: [0x00000002] [abc] 1
+label0003: [0x00000003] [not_here] 1
+label0004: [0x00000004] [not_here] 1
+label0005: [0x00000006] [not_here] 1
+label0006: [0x00000008] [here] 1
+label0007: [0x0000300B] [not_here] 0
+label0008: [0x0000300C] [abc] 0
+label0009: [0x0000300D] [here] 0
+0x3000: 0xE00C
+0x3001: 0x3009
+0x3002: 0x2209
+0x3003: 0xB207
+0x3004: 0xA006
+0x3005: 0xF067
+0x3006: 0x2004
+0x3007: 0xF067
+0x3008: 0x2004
+0x3009: 0xF067
+0x300A: 0xF025
+0x300B: 0x5678
+0x300C: 0x1234
+0x300D: 0xABCD
+
+./lc3sim lesson.asm.hex
+show 0x1234
+show 0x300D
+show 0x1234
+halt
+
+lea means load effective address, or even simpler "load address".
+
+lea r0,here
+
+means load the address of the label here into the register 0.  There
+are a couple of ways we can confirm what is going on
+
+not_here: .word 0x5678
+abc: .word 0x1234
+here: .word 0xABCD
+
+The assembler is dumping the machine code:
+
+0x300B: 0x5678
+0x300C: 0x1234
+0x300D: 0xABCD
+
+here is at address 0x300D so lea r0,here results in r0 = 0x300D
+
+st r0,not_here
+
+this is a normal store, stores the value 0x300D to the word at the label
+not_here, the 0x5678 that was there is overwritten.
+
+ld r1,abc
+
+r1 = 0x1234
+
+sti r1,not_here
+
+as with a normal load and store store means write, load means read.
+indrect is like using a pointer in C.
+
+unsigned *not_here;
+not_here=(unsigned *)0x300D; //lea r0,here ; st r0,not_here
+r1 = 0x1234;
+*not_here = r1; //sti r1,not_here
+
+From the description in the instruction set reference
+
+mem[mem[not_here]] = r1
+mem[0x300D] = 0x1234 //write to memory at 0x300D
+
+ldi r0,not_here
+
+store is write, load is read
+
+r0 = mem[mem[not_here]]
+r0 = mem[0x300D]
+r0 = 0x1234
+
+trap 0x67
+
+show 0x1234
+
+ld r0,not_here
+
+r0 = 0x300D
+
+trap 0x67
+
+show 0x300D
+
+ld r0,here
+
+The lea and st combination up front made not_here hold the address of
+here.  So the sti instruction caused the value to be stored to the
+memory location with the label here.  So here contains 0x1234
+
+r0 = 0x1234
+
+trap 0x67
+
+show 0x1234
+
+trap 0x25
+
+halt
+
+----------------------------------------
+Lesson 8: Jump
+
+;---- lesson 8 ----
+lea r1,skipper
+jmp r1
+
+ld r0,abc
+trap 0x67
+
+skipper:
+ld r0,xyz
+trap 0x67
+trap 0x25
+
+abc: .word 0x1234
+xyz: .word 0x4321
+;---- lesson 8 ----
+
+./lc3asm lesson.asm
+label0000: [0x00000000] [skipper] 1
+label0001: [0x00000002] [abc] 1
+label0002: [0x00003004] [skipper] 0
+label0003: [0x00000004] [xyz] 1
+label0004: [0x00003007] [abc] 0
+label0005: [0x00003008] [xyz] 0
+0x3000: 0xE203
+0x3001: 0xC040
+0x3002: 0x2004
+0x3003: 0xF067
+0x3004: 0x2003
+0x3005: 0xF067
+0x3006: 0xF025
+0x3007: 0x1234
+0x3008: 0x4321
+
+./lc3sim lesson.asm.hex
+show 0x4321
+halt
+
+The jump instruction (jmp) is very similar to the unconditional branch.
+In this architecture the jmp branches to an address held in a register.
+
+lea r1,skipper
+jmp r1
+
+Lea loads the address of skipper into the r1 register.  Then the jmp
+instruction branches or jumps to the address in r1 which is now the
+address at the label skipper.  So this pair of instructions performs
+an unconditional branch to the label skipper.  It is another way of doing
+
+brnzp skipper
+
+Now why would you use jmp instead of a branch?  Well the branch is relative
+to the pc and has a limited number of instructions it can branch forward
+or back.  Where a register can contain any address (assuming some other
+method than lea to put an address in that register, as lea is limited
+in its range as well).
+
+So we have jumped over the load of abc and the trap to the skipper label
+then it is a simple load of xyz (0x4321) and then show that value, then
+halt.
+
+----------------------------------------
+Lesson 9: Jump to subroutine
+
+;---- lesson 9 ----
+jsr myfun
+jsr more_fun
+trap 0x25
+
+myfun:
+add r0,r7,#0
+trap 0x67
+ret
+
+more_fun:
+add r0,r7,#0
+trap 0x67
+add r3,r7,#0
+lea r1,myfun
+jsrr r1
+add r0,r7,#0
+trap 0x67
+add r7,r3,#0
+add r0,r7,#0
+trap 0x67
+jmp r7
+;---- lesson 9 ----
+
+
+./lc3asm lesson.asm
+label0000: [0x00000000] [myfun] 1
+label0001: [0x00000001] [more_fun] 1
+label0002: [0x00003003] [myfun] 0
+label0003: [0x00003006] [more_fun] 0
+label0004: [0x00000009] [myfun] 1
+0x3000: 0x4802
+0x3001: 0x4804
+0x3002: 0xF025
+0x3003: 0x11E0
+0x3004: 0xF067
+0x3005: 0xC1C0
+0x3006: 0x11E0
+0x3007: 0xF067
+0x3008: 0x17E0
+0x3009: 0xE3F9
+0x300A: 0x4040
+0x300B: 0x11E0
+0x300C: 0xF067
+0x300D: 0x1EE0
+0x300E: 0x11E0
+0x300F: 0xF067
+0x3010: 0xC1C0
+
+./lc3sim lesson.asm.hex
+show 0x3001
+show 0x3002
+show 0x300B
+show 0x300B
+show 0x3002
+halt
+
+Now it is time to call functions.  There are a couple of common methods
+used by instruction sets for performing a call to a subroutine or a
+function call.  If you think about a C program or any high level language
+when you make a function call, when the function is finished you expect
+your program to return to run the line after the function call.
+
+So what you want to do in assembly is you basically want to perform
+an unconditional branch but in such a way that you are able to branch
+back to the instruction after the branch.
+
+branch to function
+return:
+...
+function:
+...
+branch to return:
+
+And using brnzp we know how to do that now
+
+brnzp function
+return:
+...
+function:
+...
+brnzp return:
+
+Here is the problem though, what if we wanted to call the function
+more than once?
+
+brnzp function
+return:
+...
+brnzp function
+another_return:
+...
+function:
+...
+brnzp return:
+
+Since we hardcoded the return the second time we wanted to use the
+function it would not go back to another_return it would go back
+to return.  What use is a function you cannot use more than once?
+
+So the lc3 solution is to use one of the general purpose registers in
+a special purpose way.  If you look at the descriptions for jsr the
+first thing it says is r7 = pc.  Now when an instruction is executed
+the pc contains the address of the next instruction the instruction
+after the one we are executing.  So r7 = pc means r7 will contain
+the return address for our function call.
+
+jsr myfun
+jsr more_fun
+...
+myfun:
+add r0,r7,#0
+trap 0x67
+ret
+...
+
+jsr myfun means jump to subroutine at the address at label myfun.  but
+before jumping save the address to the next instruction (jsr more_fun)
+in the register r7.  If jsr myfun is at address 0x3000 then jsr more_fun
+is at address 0x3001, so when we start running the function at myfun
+r7 will contain the value 0x3001.  Myfun starts by moving the value in
+r7 to r0 (r0 = r7 + 0) then shows the contents of r0.  The first output
+of the simulator is 0x3001 so that is as expected.  Now the ret means
+jump to the address in r7.  For lc3 assembly language the instruction
+ret is a pseudo instruction, the real instruction is jmp r7.  The
+output of the assembler shows this (well you have to know how to read
+it, which is a future discussion).
+
+0x3005: 0xC1C0
+0x3010: 0xC1C0
+
+At this point r7 contains 0x3001, so when we jump to 0x3001 we are
+basically returning from the subroutine/function thus the name of the
+pseudo instruction being ret, return.
+
+Now we are at the jsr more_fun instruction, we know how this part
+works we are going to jump to more_fun, but before doing that we save
+the address if the instruction after the jsr (0x3002 in this case)
+in r7.
+
+Now what we wanted to do was this
+
+main()
+{
+  myfun();
+  more_fun();
+}
+myfun()
+{
+  return;
+}
+more_fun()
+{
+  myfun();
+  return;
+}
+
+We want to nest function calls, have more_fun() call myfun() and then
+return to more_fun() then return to main().
+
+Here is our problem.
+
+jsr more_fun
+there:
+
+more_fun:
+; r7 contains the return address there
+jsr myfun ; this changes r7 to the address here
+here:
+ ;r7 was modified by the jsr myfun, it still contains the address here
+ret ; this returns to here, not there!
+
+Later we will find out about a more portable and proper solution but
+for now what if we save the contents of r7 in some other register.
+
+jsr more_fun
+there:
+
+more_fun:
+ ; r7 contains the return address there
+ add r3,r7,#0
+ ; now r3 contains the return address there
+ jsr myfun ; this changes r7 to the address here
+here:
+ ; r7 contains here, r3 contains there so
+ add r7,r3,#0 ; now r7 contains there
+ ret ; returns to there
+
+In this particular case we could have taken a shortcut and saved an
+instruction:
+
+here:
+ ; r7 contains here, r3 contains there so
+ jmp r3
+
+The full more_fun function has a bunch of show calls in it
+
+
+more_fun:
+add r0,r7,#0 ; contains 0x3002 return address after jsr more_fun r0 = r7
+trap 0x67    ; show 0x3002
+add r3,r7,#0 ; r3 = r7 = 0x3002
+lea r1,myfun ; r1 = myfun
+jsrr r1      ; this is another form of jump subroutine, instead of an
+             ; address you specify a register that contains the address
+             ; similar to jmp r1 but r7 is modified to the address after
+             ; jsrr which is 0x300B
+             ; note that myfun shows r7 which in myfun is 0x300B
+add r0,r7,#0 ; we are back from myfun, so r7 should contain the address
+             ; after the jsrr r1 so r0 = 0x300B
+trap 0x67    ; show 0x300B
+add r7,r3,#0 ; r7 = r3 = 0x3002
+add r0,r7,#0 ; r0 = r7 = 0x3002
+trap 0x67    ; show 0x3002
+jmp r7       ; this is the same as a ret, jump to what is in r7, 0x3002
+
+And returning after jsr more_fun we simply halt.
+
+jsr myfun
+jsr more_fun
+trap 0x25
+
+show 0x3001  first call to myfun
+show 0x3002  beginning of more_fun
+show 0x300B  when more_fun calls myfun, in myfun
+show 0x300B  when myfun returns to more_fun
+show 0x3002  when we restore r7 from r3
+
+----------------------------------------
+Lesson 11: ldr, str, and labels
+
+;---- lesson 11 ----
+lea r1,base
+ldr r0,r1,#0
+trap 0x67
+ldr r0,r1,#1
+trap 0x67
+add r2,r1,#2
+ldr r0,r2,#0
+trap 0x67
+add r2,r2,#1
+ldr r0,r2,#0
+trap 0x67
+trap 0x25
+
+base:
+.word 0x1111
+.word 0x2222
+.word 0x3333
+.word 0x4444
+;---- lesson 11 ----
+
+./lc3asm lesson.asm
+label0000: [0x00000000] [base] 1
+label0001: [0x0000300C] [base] 0
+0x3000: 0xE20B
+0x3001: 0x6040
+0x3002: 0xF067
+0x3003: 0x6041
+0x3004: 0xF067
+0x3005: 0x1462
+0x3006: 0x6080
+0x3007: 0xF067
+0x3008: 0x14A1
+0x3009: 0x6080
+0x300A: 0xF067
+0x300B: 0xF025
+0x300C: 0x1111
+0x300D: 0x2222
+0x300E: 0x3333
+0x300F: 0x4444
+
+./lc3sim lesson.asm.hex
+show 0x1111
+show 0x2222
+show 0x3333
+show 0x4444
+halt
+
+So we have seen the ld instruction where you specify the register
+to read the value into and the name of the label (an address) that
+you want to read from.  Ldi uses a level of indirection instead of
+operating on the address specified, the address specified contains
+the address to operate on.  The third flavor is is ldr.  It is like
+ld but it reads from the address contained in the second register listed.
+
+ldr r3,r4,#0
+
+Take the contents of r4, add the offset, use that as an address to read
+memory, take what you find in memory and put it in register r3.
+
+Before diving into the program, understand that a label in assembly
+language is just a variable that represents an address.  An address
+that the assembler will figure out later, after you have written
+the program.  It is not a function it is not a variable it is an
+address.
+
+lea r1,base
+
+Load the address base into r1
+
+ldr r0,r1,#0
+
+here is an ldr r0 = mem[r1+0] since r1 is base r0 = mem[base+0] = 0x1111
+
+trap 0x67
+
+show 0x1111
+
+ldr r0,r1,#1
+
+r0 = mem[r1+1] = mem[base+1] = 0x2222
+
+trap 0x67
+
+show 0x2222
+
+add r2,r1,#2
+
+Now do some math with that address r2 = r1 + 2 = base + 2
+
+ldr r0,r2,#0
+
+r0 = mem[r2+0] = mem[(base+2)+0] = mem[base+2] = 0x3333
+
+trap 0x67
+
+show 0x3333
+
+add r2,r2,#1
+
+r2 = r2 + 1 = (base+2) + 1 = base + 3
+
+ldr r0,r2,#0
+
+r0 = mem[r2+0] = mem[(base+3)+0] = mem[base+3] = 0x4444
+
+trap 0x67
+
+show 0x4444
+
+trap 0x25
+
+halt.
+
+
+Just like ld and st have a relationship, ld is load from memory into
+a register (a read), st is store from the register into memory (a write).
+ldr and str, same deal ldr is read from a register based address, str
+is write the contents of a register to a register based address.
+
+----------------------------------------
+Lesson 11: The stack
+
+;---- lesson 11 ----
+ld r6,stack_top
+ld r0,zero
+
+jsr fun
+trap 0x25
+
+fun:
+trap 0x67
+add r6,r6,#0xFFFE
+str r7,r6,#1
+add r1,r0,#1
+str r1,r6,#0
+add r2,r1,#0xFFF9
+brzp skip
+add r0,r1,#0
+jsr fun
+skip:
+ldr r0,r6,#0
+trap 0x67
+ldr r7,r6,#1
+add r6,r6,#0x0002
+ret
+
+zero: .word 0x0000
+stack_top: .word 0x6000
+;---- lesson 11 ----
+
+./lc3asm lesson.asm
+label0000: [0x00000000] [stack_top] 1
+label0001: [0x00000001] [zero] 1
+label0002: [0x00000002] [fun] 1
+label0003: [0x00003004] [fun] 0
+label0004: [0x0000000A] [skip] 1
+label0005: [0x0000000C] [fun] 1
+label0006: [0x0000300D] [skip] 0
+label0007: [0x00003012] [zero] 0
+label0008: [0x00003013] [stack_top] 0
+0x3000: 0x2C12
+0x3001: 0x2010
+0x3002: 0x4801
+0x3003: 0xF025
+0x3004: 0xF067
+0x3005: 0x1DBE
+0x3006: 0x7F81
+0x3007: 0x1221
+0x3008: 0x7380
+0x3009: 0x1479
+0x300A: 0x0602
+0x300B: 0x1060
+0x300C: 0x4FF7
+0x300D: 0x6180
+0x300E: 0xF067
+0x300F: 0x6F81
+0x3010: 0x1DA2
+0x3011: 0xC1C0
+0x3012: 0x0000
+0x3013: 0x6000
+
+./lc3sim lesson.asm.hex
+show 0x0000
+show 0x0001
+show 0x0002
+show 0x0003
+show 0x0004
+show 0x0005
+show 0x0006
+show 0x0007
+show 0x0006
+show 0x0005
+show 0x0004
+show 0x0003
+show 0x0002
+show 0x0001
+halt
+
+Time for a break, take a smoke, go to the bathroom, grab a coke or
+cup of coffee.  Then come back.  This one might be obvious or might
+twist your mind.  Maybe you didnt understand recursion when they showed
+it to you in some other language.  Maybe it will or wont make sense here.
+Likewise what is that thing called a stack, I couldnt see it in C or
+other languages...You are going to see it in assembly.
+
+In C you are taught about two kinds of variables.  Global and local.
+Global is a bit more obvious, there is only one, everyone that touches
+it changes the only one.  (Okay lets not get into a local with the
+same name and all that you know what I mean).  Well the compiler when
+it does its thing, chooses a memory location, a single memory location,
+where that global will live.  All accesses to that global use that
+memory location.  You increment it or add it or subtract, it all to
+and from the same place.   But what about local variables, how does
+that work?  How does the compiler "allocate" some memory just for that
+function, does it call malloc()?  No, that is not how it works.  How
+could it?  Malloc() is yet another function which probably has local
+variables, or at least could if it wanted to.
+
+First and foremost, the stack is just memory, plain old memory.  What
+makes it special is that in some instruction sets there are special
+instructions with general purpose registers with a special feature,
+kind of like r7 in lc3.  Or sometimes the stack pointer is like the pc
+in lc3 and not directly visible a special register.  And sometimes, there
+are no special stack instructions at all the stack is implemented using
+a convention.  Meaning every one agrees and/or understands that regiter
+blah will be reserved for use as the stack pointer.
+
+Lets take a break from that and look at some recursion.  We know from
+C or other languages that you can call the function you are in, from
+the function you are in.  Hopefully you do it in such a way as to not
+get into an infinite loop.  Here is a simple example of recursion in C
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void fun ( int x )
+{
+    int y;
+
+    printf("show %d\n",x);
+    y = x+1;
+    if(y<7) fun(y);
+    printf("show %d\n",y);
+}
+
+int main ( void )
+{
+    fun(0);
+    return(0);
+}
+
+
+The first call to fun() is with a parameter of 0.  The first call to
+fun, x is zero.  We print x (zero).  A local variable y is set to
+x+1 = 0+1 = 1;  And that is fine.  So now if x < 7 we call fun again
+with y as the argument, so the second call to 1 is with an x of 1.
+Lets chart this out
+
+x = 0; print 0; y = 1; fun(1);
+x = 1; print 1; y = 2; fun(2);
+x = 2; print 2; y = 3; fun(3);
+x = 3; print 3; y = 4; fun(4);
+x = 4; print 4; y = 5; fun(5);
+x = 5; print 5; y = 6; fun(6);
+x = 6; print 6; y = 7;
+Now y is not less than 7 so we do not call fun(7), we are in the middle
+of fun(6);  x = 6, y = 7, so we skip calling fun, we go right to print
+y, which is 7.  And we return from fun(6);  Now we are back to fun(5)
+where x = 5 and y = 6 we come back after the call to fun(y) after the
+if(6<7) fun(5);  so we perform the print of y, which is a 6 and return
+from that function.  This repeats until we hit the return from fun(0)
+which returns back to main.
+
+x = 0; print 0; y = 1; fun(1);
+x = 1; print 1; y = 2; fun(2);
+x = 2; print 2; y = 3; fun(3);
+x = 3; print 3; y = 4; fun(4);
+x = 4; print 4; y = 5; fun(5);
+x = 5; print 5; y = 6; fun(6);
+x = 6; print 6; y = 7;
+print 7; return;
+print 6; return;
+print 5; return;
+print 4; return;
+print 3; return;
+print 2; return;
+print 1; return;
+
+We learned from nested calls to functions before (jump to subroutine)
+that each time a function is called we need to keep a copy of the
+return value if we are going to call another function, because calling
+another funciton modifies r7 which holds the return value.  Another
+thing we notice is that for each call to fun there is a new memory location
+needed to store y for that one call to the function, we could easily change
+the if(y<7) some larger number, any number and this code should work
+(so long as we dont "run out" of stack).  The first and oldest call to
+fun() we remember the y and the return value for that call no matter how
+many have come in between, same for any of the calls.
+
+Well think about some note cards or index cards.  Say we have a bunch
+of note cards.  When the first call to fun is made, fun(0), we take two
+note cards on one card we write the return address, the contents of r7,
+and we place that card on the table.  The second card we write the value
+for y, which is x+1 = 0+1 = 1;  We place that second card on top of the
+first card, we begin to stack up note cards.  Now the second call to
+fun, fun(1), we take two new note cards, the first one we write the
+return address the contents of r7 and place it on the stack, then we write
+the value of y = x+1 = 1+1 = 2 on the next note card and place that on
+the stack.  We have added four cards thus far.  Third call to fun,
+fun(2), we write the address in r7 on a card, put it on the stack,
+write the value of y (3) and put that on the stack.  We have added six
+cards thus far, two for each call to fun().  Now we hit the special
+call fun(6).  We have put 12 cards on the stack two for each value of
+x 0,1,2,3,4,5, we do the same again and put two more on the stack, the
+return value, and the value of y which is 7 in this case.  We do not
+call fun() again this time because the rule doesnt match y is not less
+than 7.
+
+Now we can unwind this recursion using the stack.  Take the top card off
+the stack, this contains the value 7 for this call to fun (fun(6)) and
+printf that value, discard that card.  Take the next card off the stack,
+which is the return address for the call to fun(6), use that address
+to return to the calling instance.  Now take the top card off the stack
+and print that value, 6, discard.  Take the next card off the stack and
+use that to return.  Adding something to a stack is called a push,
+removing something from a stack is called a push.
+
+
+push return f0; x = 0; print 0; y = 1; push y1; fun(1);
+push return f1; x = 1; print 1; y = 2; push y2; fun(2);
+push return f2; x = 2; print 2; y = 3; push y3; fun(3);
+push return f3; x = 3; print 3; y = 4; push y4; fun(4);
+push return f4; x = 4; print 4; y = 5; push y5; fun(5);
+push return f5; x = 5; print 5; y = 6; push y6; fun(6);
+push return f6; x = 6; print 6; y = 7; push y7;
+pop y7; print 7; pop f6; return to f6;
+pop y6; print 6; pop f5; return to f5;
+pop y5; print 5; pop f4; return to f4;
+pop y4; print 4; pop f3; return to f3;
+pop y3; print 3; pop f2; return to f2;
+pop y2; print 2; pop f1; return to f1;
+pop y1; print 1; pop f0; return to f0;
+
+So long as you have enough blank note cards and have enough room to stack
+them up, you could do this all day long.
+
+What if the first time when fun(0) pushed f0 on the stack there was
+already a stack of cards on the table, that had been placed by other
+functions.  Would this still work?  Yes, so long as we have room that
+is not a problem.  The function pushes two things and pops two things
+basically it cleans up as it goes and returns with the stack the way
+it found it.  So long as all functions do this, you dont care what
+is on the stack when you got there, you pile your things on then clean
+them off when you are done.
+
+So the word pointer had been used earlier, stack pointer to be exact.
+What if the note cards were memory locations?  Locations in memory
+that the program is not using for anything else.  And there is a register
+that contains an address somewhere in that memory.  At address j.  What
+if j were at some big address, far away from our program, and each time
+we pushed something on the stack what that really did was decrement the
+address in the stack pointer, and then write the new item at that address?
+If k is the value of the stack pointer when we made the first call to
+fun, fun(0) in main.
+
+j = k;
+push f0 (j--; *j=f0; j is k-1);   print 0; push y1 (j--; *j=y1; j is k-2) fun(1)
+push f1 (j--; *j=f1; j is k-3);   print 1; push y2 (j--; *j=y2; j is k-4) fun(1)
+push f2 (j--; *j=f2; j is k-5);   print 2; push y3 (j--; *j=y3; j is k-6) fun(1)
+push f3 (j--; *j=f3; j is k-7);   print 3; push y4 (j--; *j=y4; j is k-8) fun(1)
+push f4 (j--; *j=f4; j is k-9);   print 4; push y5 (j--; *j=y5; j is k-10) fun(1)
+push f5 (j--; *j=f5; j is k-11);  print 5; push y6 (j--; *j=y6; j is k-12) fun(1)
+push f6 (j--; *j=f6; j is k-13);  print 6; push y7 (j--; *j=y7; j is k-14)
+pop (y = *j; which is y7 j++; j is k-13) print 7; pop (ret = *j; (f6) j++; j is k-12)
+pop (y = *j; which is y6 j++; j is k-11) print 6; pop (ret = *j; (f6) j++; j is k-10)
+pop (y = *j; which is y5 j++; j is k-9)  print 5; pop (ret = *j; (f6) j++; j is k-8)
+pop (y = *j; which is y4 j++; j is k-7)  print 4; pop (ret = *j; (f6) j++; j is k-6)
+pop (y = *j; which is y3 j++; j is k-5)  print 3; pop (ret = *j; (f6) j++; j is k-4)
+pop (y = *j; which is y2 j++; j is k-3)  print 2; pop (ret = *j; (f6) j++; j is k-2)
+pop (y = *j; which is y1 j++; j is k-1)  print 1; pop (ret = *j; (f6) j++; j is k-0)
+
+and when finished j is equal to k.  No matter what k was we end up where
+we started.  Each function call ends up where it started, so long
+as the function has a balanced number of pushes and pops.
+
+yes, there are some systems where the stack "grows up" meaning the address
+gets larger when you push things on the stack.  And there are systems where
+a push you write to memory first, then you change the stack pointer.
+The lc3 has one instruciton in hardware that operates in a certain way,
+we have not used that instruction yet, but the order of operations for
+a pop in that instruciton is read from the memory pointed to by the
+stack pointer (r6) then increment the stack pointer one location.  So
+we need to be consistent.
+
+I have let the cat out of the bag, r6 is another general purpose register
+that also has a second life as a special purpose register, because it
+is used specifically by hardware as such.  So we might as well use it
+all of the time as the stack pointer.  We dont have to but that is
+another story.
+
+About this stack growning down or growing up.  If you think about the
+use of memory.  Programs in all processors I know of execute in
+increasing address order.  If there is no branch the next instruction
+is the current instruction plus the size of the current instruction.
+In the lc3 architecture the next instruction, if no branch is taken,
+is at current instruction plus one.  So code grows upward.  When a
+program is compiled or assembled your program consumes some amount of
+memory starting at the entry point and going upward.  There is a finite
+amount of memory, we have consumed some chunk of it for our program
+and some chunk of it for our variables, what is left is called the
+heap.  The heap of memory left over.  The heap is not something that
+has a direct hardware connection, there is no heap pointer or anything
+like that.  the compiler or in assembly language the programmer must
+manage memory and knows where the end of the program is and the heap
+begins.  Now C functions like malloc() have the desire to start
+at the beginning of the heap and grow upward as well.  What you want
+to do is have your stack start at the top of memory, the top of the heap
+a high address in the heap, and grow downward.  This is a quick way
+to make efficient use of the heap.  Now it is possible to get into
+trouble.  If you do too many mallocs, or at least consume too much
+memory using mallocs, and you have a lot of local variables, lots of
+stack consumption, then the software that manages the malloc may give
+you some memory that the stack grows into, causing your malloced data
+and/or your stack to get corrupt, leading to hopefully a crash or worse
+some strange behavior.  Again this is not a rule, but a convention.
+Naturally with a malloc there is the free, and the portion of the heap
+at the bottom which is used by malloc() and free() can get fragmented.
+Say you malloc 100 bytes, then malloc 200 bytes, then free the first
+100 bytes and malloc 300 bytes.  Well there was only space for 100 at
+the bottom.  the malloc of 300 bytes cant go there we need to put it
+after the malloc of 200 bytes.  We have this unused hole of 100 bytes
+now right in our heap.  Managing mallocs and allocs is an artform
+of itself, decades of research and solutions, not unlike file systems.
+
+For a function to be really useful it needs to have a "calling convetion"
+both the caller and the callee need to agree on what rules to use for
+passing parameters.  There are two often used solutions for passing
+parameters, one is stack based the other is register based.  Now in
+most systems there is often much more stack than the number of registers
+and if this were a C calling convetion, used by a C compiler we have
+to be able to support up to some number X (32?) parameters to be compatible
+with the standard.  That is likely more registers than you have spare
+in your processor.  So often in a register based calling convention
+registers are used for the first N parameters then the stack is used
+after that.  For our very simple fun() function the rule will be the
+paramter will be passed to the funciton in register r0.  The function
+can use and destroy r0-r2, if you think about it you dont want to say
+have an important value in a register r4 for example, and when you call
+some function that function uses r4 to do something and messes up your
+value.  there are a couple of solutions for this, one is to save the
+value on the stack with a push before calling some other function
+and restoring it from the stack when you return from that function.
+Another is to make a rule about what registers have to put back they
+way they were found when the function was called.
+
+So lets try to examine the lesson, this lesson is a direct, human, hand,
+compiled version of the C program shown above.  Before main can start
+the program starts by initializing the stack pointer.  The stack is
+dynamic in nature but before we can use it the first time we need to
+point it at some high address.
+
+ld r6,stack_top
+
+In order to call fun(0) we need to follow our convention and place
+the parameter being passed in in r0.  Then call the function
+
+ld r0,zero
+jsr fun
+
+When the call to the function returns, halt.
+
+trap 0x25
+
+Now our function.
+
+fun:
+
+trap 0x67
+
+show r0 whatever it may be
+
+add r6,r6,#0xFFFE
+
+0xFFFE is a negative 2.  This is called making a stack frame, by analyzing
+the function before writing it we know there are two things we want
+on the stack.  We could a) push and pop as we go or b) adjust the stack
+pointer one time for the whole function, allocating all the locations
+we need, and then referencing into this allocated memory using
+stack pointer + offset addressing.  This program does the latter.  Each
+function call we need to store the return value and we need a location
+for storing the local variable y.  Subracting 2, r6 = r6 - 2 is the same
+as allocating two locations for this function.
+
+str r7,r6,#1
+
+save the return address at mem[r6+1]
+
+add r1,r0,#1
+
+compute y = x + 1;  x is the passed in parameter which is in register
+r0.
+
+str r1,r6,#0
+
+save the value y on the stack at address mem[r6+0]
+
+add r2,r1,#0xFFF9
+brzp skip
+
+A little math here, we want to compare with 7 usually that is done
+with a subtract and then look at the flags.  We dont have a subtract
+we have an add instruciton, so we want to add with a negative 7.
+To negate a number in twos complement, invert and add one so
+0x0007 inverted is 0xFFF8 plus one is 0xFFF9.  so 0xFFF9 is a negative y
+As a programmer we know this function will have values of y that start
+at 1 and increase by 1 for every call so compute y - 7 and see what
+happens when we get to 7.
+0x0001+0xFFF9 = 0xFFFA
+0x0002+0xFFF9 = 0xFFFB
+0x0003+0xFFF9 = 0xFFFC
+0x0004+0xFFF9 = 0xFFFD
+0x0005+0xFFF9 = 0xFFFE
+0x0006+0xFFF9 = 0xFFFF
+0x0007+0xFFF9 = 0x0000
+0x0008+0xFFF9 = 0x0001
+0x0009+0xFFF9 = 0x0002
+0x000A+0xFFF9 = 0x0003
+So when y = 1 through 6 the result is a negative number, for those
+cases 1 to 6, y is less than 7 so we want to call the function again
+recursively.  When y = 7 we do not want to call the function.  As written
+this program does not have this issue but what if we call the function
+with the number 7 or a number larger than 7.  When called with a 7
+then y = 8, and 8+0xFFF9 is a positive number.  So for the case x = 6
+y = 7 which is not less than 7 the result of this add is zero and the
+zero flag will be set.  For values of y that are greater than 7 the
+result of this add is a positive number and the p flag will be set.
+Think of this is less than 7 call fun() is the same as if greater than
+or equal to 7 then dont call fun().  equal to 7 the subtract of 7 is
+a zero and numbers greater than 7 the subtract of 7 is a positive number
+so this implementation uses a brzp, branch if zero or positive and skip
+over the call to fun
+
+
+add r0,r1,#0
+jsr fun
+
+If we execute fun, then we execute fun by passing the parameter y,
+we computed y by taking r0 and adding 1 and putting the result in r1
+this is not the only way you could do this you could optimize this
+a little and save an instruction, but that is how it was done here.
+so per the calling convention y needs to be in r0, so the add r0,r1,#0
+copies r1 to r0.  Then we call the function fun.
+
+For either the case of returning from a call to fun or the case where
+we skipped over the call to fun, we land at the address skip
+
+skip:
+ldr r0,r6,#0
+trap 0x67
+
+The next section of code after skip is to load into r0 the contents
+of the stack at mem[r6+0], if you look above we are using r6+0 to keep
+the value y.  So r0 gets the value of y computed at the beginning of
+this function call, and the trap 0x67 displays that value.
+
+ldr r7,r6,#1
+
+The return address was stored in memory at mem[r6+1], lets get that
+saved value off of the stack.
+
+add r6,r6,#0x0002
+
+And just before we return lets put the stack back the way we found it
+by adding the 2 that we subtracted.  Remove the "stack frame" that we
+created or allocated.
+
+ret
+
+return to the caller
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
