@@ -2046,13 +2046,349 @@ ret
 
 return to the caller
 
+So in general the stack is used when you need some temporary (relative
+term) storage.  Unless there is a specific reason (rare), you should
+use it in a balanced manner, just like matching up your malloc()s and
+free()s you should have the same number of pushes and pops in the same
+context of code.  Some programming languages compilers had the convention
+that the caller would set up the stack and the callee would clean it
+up.  C compilers and others use an easier to maintain and understand
+convention of the caller cleans up after itself and the callee cleans
+up after itself.
 
 
+----------------------------------------
+Lesson 12: A simpler function
+
+;---- lesson 12 ----
+
+ld r6,stack_top
+ld r0,zero
+
+add r1,r0,#3
+add r6,r6,#0xFFFF ;push r1
+str r1,r6,#0      ;push r1
+
+add r1,r0,#2
+add r6,r6,#0xFFFF ;push r1
+str r1,r6,#0      ;push r1
+
+add r1,r0,#1
+add r6,r6,#0xFFFF ;push r1
+str r1,r6,#0      ;push r1
+
+jsr sum
+
+trap 0x67
+add r0,r1,#0
+trap 0x67
+
+ldr r0,r6,#0
+add r6,r6,#3
+trap 0x67
+trap 0x25
+
+sum:
+add r6,r6,#0xFFFE
+str r0,r6,#0
+str r1,r6,#1
+ldr r0,r6,#2
+ldr r1,r6,#3
+add r0,r0,r1
+ldr r1,r6,#4
+add r0,r0,r1
+str r0,r6,#2
+ldr r1,r6,#1
+ldr r0,r6,#0
+add r6,r6,#0x0002
+ret
+
+stack_top: .word 0x6000
+zero: .word 0x0000
+;---- lesson 12 ----
 
 
+./lc3asm lesson.asm
+label0000: [0x00000000] [stack_top] 1
+label0001: [0x00000001] [zero] 1
+label0002: [0x0000000B] [sum] 1
+label0003: [0x00003013] [sum] 0
+label0004: [0x00003020] [stack_top] 0
+label0005: [0x00003021] [zero] 0
+0x3000: 0x2C1F
+0x3001: 0x201F
+0x3002: 0x1223
+0x3003: 0x1DBF
+0x3004: 0x7380
+0x3005: 0x1222
+0x3006: 0x1DBF
+0x3007: 0x7380
+0x3008: 0x1221
+0x3009: 0x1DBF
+0x300A: 0x7380
+0x300B: 0x4807
+0x300C: 0xF067
+0x300D: 0x1060
+0x300E: 0xF067
+0x300F: 0x6180
+0x3010: 0x1DA3
+0x3011: 0xF067
+0x3012: 0xF025
+0x3013: 0x1DBE
+0x3014: 0x7180
+0x3015: 0x7381
+0x3016: 0x6182
+0x3017: 0x6383
+0x3018: 0x1001
+0x3019: 0x6384
+0x301A: 0x1001
+0x301B: 0x7182
+0x301C: 0x6381
+0x301D: 0x6180
+0x301E: 0x1DA2
+0x301F: 0xC1C0
+0x3020: 0x6000
+0x3021: 0x0000
+
+./lc3sim lesson.asm.hex
+show 0x0000
+show 0x0001
+show 0x0006
+halt
 
 
+This is a simpler task, no recursion.  This time we are going to implement
+this code:
 
+signed sum ( signed a, signed b, signed c )
+{
+    return(a+b+c);
+}
+void main ( void )
+{
+    printf("0x%04X",sum(1,2,3));
+}
+
+So we are going to put our human compiler hats on and think this through.
+This time we are going to use a different calling convention.  This one
+is going to be purely stack based.
+- caller cleans up its use of the stack
+- callee cleans up its use of the stack
+- parameters are passed on the stack in reverse order such that when
+entering the function the top of the stack contains the first parameter
+- return values if any are returned on the top of the stack
+- no registers other than r7 are to be modified by the function.
+
+With stacks that grow down, you often need to stand on your head to
+look at them.  What is called the "top of the stack" is the first
+item on the stack when visualized as a growing up type stack, a stack
+of note cards on a table.  You can either stand on your head or you
+can write the addresses in ascending order rather than descending.  That
+is what we will do
+
+[ a ] <-- top of stack after we prepare the stack to call sum
+[ b ]
+[ c ]
+[   ] <-- top of stack before we prepared the stack to call sum
+
+This picture shows the memory locations on the stack.  Where the stack
+is before we start preparing the stack for a call to sum and after
+we are ready to jsr to sum.  This is also the picture we see right
+after we enter the call to sum.  Sum of course as needed can add more
+things to the stack.
+
+We are defining a push on the stack in C as sp--; *sp=item_pushed;  The
+sp in lc3 is r6 so
+
+add r6,r6,#0xFFFF ; subtract one
+str rx,r6,#0      ; push a register rx on the stack.  rx can be r0-r7
+
+Start by initializing the stack pointer, somewhere in high(er) memory
+than the program.  And initialize r0 so it is a known value.
+
+ld r6,stack_top
+ld r0,zero
+
+stack looks like this, we dont know what x is but we dont want to mess
+it up.
+
+[ x ] <-- r6
+
+add r1,r0,#3
+
+make r1 hold the value 3 (r1 = r0 + 3 = 0 + 3 = 3)
+
+add r6,r6,#0xFFFF
+
+stack looks like this
+
+[   ] <-- r6
+[ x ]
+
+str r1,r6,#0
+
+stack now looks like this
+
+[ 3 ] <-- r6
+[ x ]
+
+add r1,r0,#2
+
+add r6,r6,#0xFFFF
+
+[   ] <-- r6
+[ 3 ]
+[ x ]
+
+str r1,r6,#0
+
+[ 2 ] <-- r6
+[ 3 ]
+[ x ]
+
+add r1,r0,#1
+
+add r6,r6,#0xFFFF
+
+[   ] <-- r6
+[ 2 ]
+[ 3 ]
+[ x ]
+
+
+str r1,r6,#0
+
+[ 1 ] <-- r6
+[ 2 ]
+[ 3 ]
+[ x ]
+
+Now the stack is ready, the three parameters for the sum function have
+been prepared, we can now call the sum function
+
+
+jsr sum
+
+So we know what the stack looks like right now and we know that r7
+contains our return value.  Because sum does not call any other functions
+basically neither jsr nor jsrr are used, and we dont mess with r7 we can
+leave r7 alone, we dont have to save it.  If we were to call another function
+within sum we would need to save r7.
+
+We are not allowed to modify any registers, since the add instruction
+requires registers what do we do?  Well we use the stack for temporary
+storage to preserve the state of some registers, use those registers,
+the restore the state of those registers before we return.  It will
+take a minimum of two registers to perform these add operations so we
+need to save two registers.  This lesson uses r0 and r1, so the first
+task is to save them.  We could individually push each register on
+the stack which is two instructions per push as we saw above.  Or we
+could make stack frame simply move the stack pointer the amount we
+need to move it in one step.  Basically three instructions to do what
+would be four instructions if we pushed each item separately.
+
+sum:
+
+[ 1 ] <-- r6
+[ 2 ]
+[ 3 ]
+[ x ]
+
+add r6,r6,#0xFFFE ; subtract 2 from r6
+
+[         ] <-- r6 + 0
+[         ] <-- r6 + 1
+[    1    ] <-- r6 + 2
+[    2    ] <-- r6 + 3
+[    3    ] <-- r6 + 4
+[    x    ] <-- r6 + 5
+
+str r0,r6,#0
+
+[ save r0 ] <-- r6 + 0
+[         ] <-- r6 + 1
+[    1    ] <-- r6 + 2
+[    2    ] <-- r6 + 3
+[    3    ] <-- r6 + 4
+[    x    ] <-- r6 + 5
+
+str r1,r6,#1
+
+[ save r0 ] <-- r6 + 0
+[ save r1 ] <-- r6 + 1
+[    1    ] <-- r6 + 2
+[    2    ] <-- r6 + 3
+[    3    ] <-- r6 + 4
+[    x    ] <-- r6 + 5
+
+ldr r0,r6,#2 ;read the first parameter off the stack and put in r0
+ldr r1,r6,#3 ;read the second parameter off the stack and put in r1
+add r0,r0,r1 ;add the first and second parameters and save in r0
+ldr r1,r6,#4 ;read the third parameter off the stack and save in r1
+add r0,r0,r1 ;add the sum of the first two parameters and the third parameter
+str r0,r6,#2 ;save the result on the stack where top will be when we return
+
+[ save r0 ] <-- r6 + 0
+[ save r1 ] <-- r6 + 1
+[  result ] <-- r6 + 2
+[    2    ] <-- r6 + 3
+[    3    ] <-- r6 + 4
+[    x    ] <-- r6 + 5
+
+ldr r1,r6,#1 ; restore r1 with saved value on stack
+ldr r0,r6,#0 ; restore r0 with saved value on stack
+add r6,r6,#0x0002 ; adjust stack pointer to remove stack frame
+
+[  result ] <-- r6 + 0
+[    2    ] <-- r6 + 1
+[    3    ] <-- r6 + 2
+[    x    ] <-- r6 + 3
+
+ret
+
+Now we return to the first instruction after the jsr sum.  To demonstrate
+that r0 and r1 were not modified by the function.  r0 was a zero going
+into sum and r1 was a 1, lets show them.
+
+trap 0x67    ;show r0
+add r0,r1,#0 ; copy r1 to r0
+trap 0x67    ; show r0
+
+and the output shows we did not modify them
+
+show 0x0000
+show 0x0001
+
+at this point the stack still looks like this we, the caller have not
+cleaned up our stack from the call to sum.
+
+[  result ] <-- r6 + 0
+[    2    ] <-- r6 + 1
+[    3    ] <-- r6 + 2
+[    x    ] <-- r6 + 3
+
+ldr r0,r6,#0 ; read the result off the top of the stack
+add r6,r6,#3 ; instead of three pops, restore the stack pointer in one shot
+
+[    x    ] <-- r6
+
+trap 0x67  ; show r0 which contains the result of the addition of 1+2+3
+
+show 0x0006
+
+trap 0x25
+
+halt.
+
+Different university programs use this instruction set for eduational
+purposes including making a compiler.  I dont remember what calling
+convention was used, but because there are only 8 registers of which
+two are somewhat dedicated to special purposes, r7 for return values and
+r6 as a stack pointer.  It may make sense to use the stack for the
+function calling convention as shown here.  I have not made my own
+compiler for this architecture so dont know what the tradeoff is between
+register based and stack based.  (register based is usually hybrid,
+part register then using the stack if you run out of registers).
 
 
 
