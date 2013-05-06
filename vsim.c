@@ -124,6 +124,7 @@ int sim ( void )
                 if(simm&0x8000) printf(" ; -%u",(simm^0xFFFF)+1);
                 else            printf(" ; +%u",simm);
                 printf("\n");
+
                 test=(psr&7)&((inst>>9)&7);
                 if(test)
                 {
@@ -318,7 +319,7 @@ int sim ( void )
                 rd=(inst>>9)&7;
                 simm=sext9(inst);
                 dest=(pc+simm)&0xFFFF;
-                printf("st r%u,0x%04X",rd,dest);
+                printf("sti r%u,0x%04X",rd,dest);
                 if(simm&0x8000) printf(" ; -%u",(simm^0xFFFF)+1);
                 else            printf(" ; +%u",simm);
                 printf("\n");
